@@ -6,6 +6,7 @@
 <title>نوسینگەی دانیار</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -224,6 +225,16 @@
         ٢) لەوێ، <strong>User UID</strong>ـەکەی کۆپی بکە (ژمارە/نووسینی درێژە لەژێر ناوی بەکارهێنەرەکە).<br>
         ٣) لێرە دوگمەی «+ زیادکردنی بەکارهێنەر» بکە، UIDـەکە بلکێنە، ناوێک بۆ بنووسە، و مۆڵەتەکانی پێویست هەڵبژێرە.
       </div>
+
+      <h3 class="font-head font-semibold text-sm mb-3" style="color:var(--teal-dark)">💾 پاشەکەوتکردنی داتا (Backup)</h3>
+      <div class="card p-4 mb-8">
+        <p class="text-xs mb-3" style="color:var(--ink-soft)">پێشنیارە هەفتانە یان مانگانە داتاکەت داگریت بۆ ئارامی دڵ — ئەگەر هەر شتێک ڕوویدا، دەتوانیت لەم فایلانە بگەڕێیتەوە.</p>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="downloadJSONBackup()" class="px-4 py-2 rounded-lg text-sm font-semibold" style="background:var(--teal-light); color:var(--teal-dark)">📥 داگرتنی هەموو داتا (JSON — بۆ گەڕانەوە)</button>
+          <button onclick="downloadExcelBackup()" class="px-4 py-2 rounded-lg text-sm font-semibold" style="background:var(--teal-light); color:var(--teal-dark)">📊 داگرتنی مامەڵەکان (Excel — بۆ خوێندنەوە)</button>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 gap-3" id="staffList"></div>
     </section>
 
@@ -1193,6 +1204,56 @@ async function generateAccountStatement(accountId, fromDate, toDate){
   const win = window.open('', '_blank');
   if(!win){ alert('تکایە ڕێگە بە پەنجەرەی نوێ بدە (popup blocker چالاکە)'); return; }
   win.document.write(html); win.document.close();
+}
+
+/* ---------- Backup / Export ---------- */
+function triggerDownload(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function downloadJSONBackup(){
+  const [accountsRes, transactionsRes, staffRes] = await Promise.all([
+    sb.from('accounts').select('*'),
+    sb.from('transactions').select('*'),
+    sb.from('staff_permissions').select('*')
+  ]);
+  const backup = {
+    exported_at: new Date().toISOString(),
+    office: 'نوسینگەی دانیار',
+    accounts: accountsRes.data || [],
+    transactions: transactionsRes.data || [],
+    staff_permissions: staffRes.data || []
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  triggerDownload(blob, `danyar-backup-${todayStr()}.json`);
+}
+
+async function downloadExcelBackup(){
+  const { data } = await sb.from('transactions').select('*').order('transaction_date');
+  const rows = (data||[]).map(t=>({
+    'ژمارە وەسڵ': t.voucher_no,
+    'بەروار': t.transaction_date,
+    'جۆر': TYPE_LABELS[t.type] || t.type,
+    'دراو': t.currency,
+    'بڕی پارە': Number(t.amount),
+    'مدین': accountLabel(t.debit_account_id),
+    'دائن': accountLabel(t.credit_account_id),
+    'نێرەر': t.sender_name || '',
+    'وەرگر': t.receiver_name || '',
+    'موبایل': t.phone || '',
+    'عمولەی وەرگرتن': Number(t.commission_in || 0),
+    'عمولەی دان': Number(t.commission_out || 0),
+    'دۆخ': statusInfo(t.status).label,
+    'تێبینی': t.notes || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'مامەڵەکان');
+  XLSX.writeFile(wb, `danyar-transactions-${todayStr()}.xlsx`);
 }
 
 /* ---------- Init ---------- */

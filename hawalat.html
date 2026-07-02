@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نوسینگەی دانیار</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --teal:#16A8A2; --teal-dark:#0E7B76; --teal-light:#E4F5F4;
+    --bg:#F2F6F6; --surface:#FFFFFF; --ink:#1C2B2A; --ink-soft:#63807D;
+    --debit:#B5472F; --credit:#0E7B76;
+    --gold:#C08A28; --amber:#C07A2E; --sage:#4C7A6E; --rust:#A6503A;
+    --border:#DCEAE9;
+  }
+  *{font-family:'Vazirmatn',sans-serif;}
+  .font-head{font-family:'Noto Kufi Arabic',sans-serif;}
+  body{background:var(--bg); color:var(--ink);}
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
+  .num{font-variant-numeric: tabular-nums;}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:12px;}
+  .fade-in{animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+  input, select, textarea{background:#fff; border:1px solid var(--border); border-radius:8px;}
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--teal); outline-offset:1px;}
+
+  .nav-item{transition:all .15s ease; color:#EAFAF9;}
+  .nav-item.active{background:rgba(255,255,255,.18); color:#fff;}
+  .nav-item:not(.active):hover{background:rgba(255,255,255,.1);}
+  .btn-primary{background:var(--teal); color:#fff;}
+  .btn-primary:hover{background:var(--teal-dark);}
+
+  .doc-tile{background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:20px; text-align:center; transition:all .15s ease; cursor:pointer;}
+  .doc-tile:hover{border-color:var(--teal); box-shadow:0 4px 14px rgba(22,168,162,.15); transform:translateY(-2px);}
+  .doc-tile .icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:20px;}
+
+  .action-btn{display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px 22px; border-radius:12px; border:1.5px solid var(--border); background:#fff; cursor:pointer; transition:all .15s ease;}
+  .action-btn:hover{border-color:var(--teal); box-shadow:0 3px 10px rgba(22,168,162,.12);}
+  .action-btn .aicon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .action-btn span.lbl{font-size:11px; font-weight:700;}
+
+  table.ledger{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.ledger thead th{background:var(--teal-light); color:var(--teal-dark); font-weight:700; font-size:11px; padding:9px 8px; text-align:right; white-space:nowrap; border-bottom:1.5px solid var(--border);}
+  table.ledger tbody td{padding:9px 8px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  table.ledger tbody tr{cursor:pointer;}
+  table.ledger tbody tr:hover{background:#FAFCFC;}
+  table.ledger tbody tr.selected{background:var(--teal-light);}
+  table.ledger tfoot td{padding:10px 8px; font-weight:800; background:var(--teal-light); color:var(--teal-dark); border-top:2px solid var(--teal);}
+  .status-badge{font-size:10px; font-weight:700; padding:2px 9px; border-radius:99px; border:1.5px solid;}
+  .acct-dropdown{position:absolute; z-index:60; width:100%; background:#fff; border:1px solid var(--border); border-radius:8px; margin-top:2px; max-height:190px; overflow-y:auto; box-shadow:0 6px 18px rgba(0,0,0,.08);}
+  .debt-tab{border:1.5px solid var(--border); color:var(--ink-soft); background:#fff;}
+  .debt-tab.active{background:var(--teal); border-color:var(--teal); color:#fff;}
+  .acct-item{padding:8px 12px; font-size:12px; cursor:pointer;}
+  .acct-item:hover{background:var(--teal-light);}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ==================== LOGIN SCREEN ==================== -->
+<div id="loginScreen" class="min-h-screen flex items-center justify-center px-4">
+  <div class="card w-full max-w-sm p-8 fade-in">
+    <div class="text-center mb-6">
+      <h1 class="font-head text-2xl font-bold" style="color:var(--teal-dark)">نوسینگەی دانیار</h1>
+      <p class="text-xs mt-1 tracking-widest" style="color:var(--ink-soft)">DANYAR OFFICE</p>
+    </div>
+    <form id="loginForm" class="space-y-3">
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">ئیمەیل</label>
+        <input type="email" id="loginEmail" required class="w-full mt-1 px-3 py-2 text-sm" placeholder="you@example.com">
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">پاسوۆرد</label>
+        <input type="password" id="loginPassword" required class="w-full mt-1 px-3 py-2 text-sm" placeholder="••••••••">
+      </div>
+      <p id="loginError" class="text-xs hidden" style="color:var(--rust)"></p>
+      <button type="submit" class="btn-primary w-full py-2.5 rounded-lg text-sm font-semibold mt-2">چوونەژوورەوە</button>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== APP SHELL ==================== -->
+<div id="appShell" class="hidden min-h-screen md:flex">
+
+  <aside class="md:w-60 shrink-0" style="background:var(--teal-dark);">
+    <div class="p-5 text-center border-b" style="border-color:rgba(255,255,255,.15)">
+      <h1 class="font-head text-base font-bold text-white">نوسینگەی دانیار</h1>
+      <p class="text-[10px] mt-1 tracking-widest" style="color:#BFEAE7">DANYAR OFFICE</p>
+      <p id="currentUserLabel" class="text-[11px] mt-2" style="color:#BFEAE7"></p>
+    </div>
+    <nav class="p-3 flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible">
+      <button data-tab="dashboard" data-perm="" class="nav-item active flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start"><span>🏠</span><span>سەرەکی</span></button>
+      <button data-tab="documents" data-perm="can_create_transactions" class="nav-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start"><span>🧾</span><span>سەنەدەکان</span></button>
+      <button data-tab="transactions" data-perm="can_view_transactions" class="nav-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start"><span>📋</span><span>مامەڵەکان</span></button>
+      <button data-tab="misc" data-perm="can_view_misc" class="nav-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start"><span>🗂️</span><span>حەواڵەی مەتفەریقە</span></button>
+      <button data-tab="statements" data-perm="can_view_statements" class="nav-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start"><span>📊</span><span>کەشفی حساب</span></button>
+      <button data-tab="customers" data-perm="can_manage_customers" class="nav-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start"><span>👤</span><span>کڕیاران</span></button>
+      <button data-tab="users" data-perm="admin" class="nav-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start"><span>🔐</span><span>بەکارهێنەران</span></button>
+    </nav>
+    <div class="p-3 space-y-2">
+      <button id="changePasswordBtn" class="w-full text-xs py-2 rounded-lg" style="background:rgba(255,255,255,.1); color:#EAFAF9">گۆڕینی وشەی نهێنی</button>
+      <button id="logoutBtn" class="w-full text-xs py-2 rounded-lg" style="background:rgba(255,255,255,.1); color:#EAFAF9">دەرچوون</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-4 md:p-8">
+
+    <!-- DASHBOARD (brand splash only) -->
+    <section id="tab-dashboard" class="tab-panel fade-in">
+      <div class="flex flex-col items-center justify-center text-center" style="min-height:60vh;">
+        <h1 class="font-head font-extrabold" style="color:var(--teal-dark); font-size:44px;">نوسینگەی دانیار</h1>
+        <p class="mt-3 text-sm tracking-[0.3em]" style="color:var(--ink-soft)">DANYAR OFFICE</p>
+      </div>
+    </section>
+
+    <!-- DOCUMENTS -->
+    <section id="tab-documents" class="tab-panel hidden">
+      <h2 class="font-head text-2xl font-bold mb-1">سەنەدەکان</h2>
+      <p class="text-sm mb-6" style="color:var(--ink-soft)">جۆری سەندی پێویست هەڵبژێرە بۆ تۆمارکردنی مامەڵەیەکی نوێ</p>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div class="doc-tile" onclick="openTransactionForm('received')"><div class="icon" style="background:#E6F4EE; color:#2E8B57;">💵</div><p class="font-head font-bold text-sm">حەواڵەی هاتوو</p></div>
+        <div class="doc-tile" onclick="openTransactionForm('sent')"><div class="icon" style="background:#FBF1E0; color:var(--amber);">📤</div><p class="font-head font-bold text-sm">حەواڵەی ڕۆشتوو</p></div>
+        <div class="doc-tile" onclick="openTransactionForm('receipt')"><div class="icon" style="background:var(--teal-light); color:var(--teal-dark);">📥</div><p class="font-head font-bold text-sm">قبض / وەرگرتن</p></div>
+        <div class="doc-tile" onclick="openTransactionForm('payment')"><div class="icon" style="background:#FBE9E6; color:var(--rust);">💸</div><p class="font-head font-bold text-sm">صرف / پارەدان</p></div>
+        <div class="doc-tile" onclick="openTransactionForm('exchange')"><div class="icon" style="background:#EFEAFB; color:#6B4FBB;">🔄</div><p class="font-head font-bold text-sm">کۆرینەوە</p></div>
+      </div>
+    </section>
+
+    <!-- TRANSACTIONS (unified list) -->
+    <section id="tab-transactions" class="tab-panel hidden">
+      <h2 class="font-head text-2xl font-bold mb-4">مامەڵەکان</h2>
+
+      <div class="flex gap-3 mb-4">
+        <button id="editActionBtn" class="action-btn" onclick="actionEdit()">
+          <div class="aicon" style="background:var(--teal-light); color:var(--teal-dark);">✏️</div>
+          <span class="lbl" style="color:var(--teal-dark)">تعدیل</span>
+        </button>
+        <button class="action-btn" onclick="actionReceipt()">
+          <div class="aicon" style="background:#EAF2F8; color:#2C6E9E;">🧾</div>
+          <span class="lbl" style="color:#2C6E9E">وەسڵ</span>
+        </button>
+        <button id="deleteActionBtn" class="action-btn" onclick="actionDelete()">
+          <div class="aicon" style="background:#FBE9E6; color:var(--rust);">🗑️</div>
+          <span class="lbl" style="color:var(--rust)">سڕینەوە</span>
+        </button>
+        <button class="action-btn" onclick="renderTransactions()">
+          <div class="aicon" style="background:#EAF2F8; color:#2C6E9E;">🔄</div>
+          <span class="lbl" style="color:#2C6E9E">ڕیفرێش</span>
+        </button>
+      </div>
+
+      <div class="card p-3 flex flex-wrap items-center gap-3 mb-4">
+        <span class="text-xs font-semibold" style="color:var(--ink-soft)">لە بەرواری:</span>
+        <input type="date" id="dateFrom" class="px-2 py-1.5 text-sm">
+        <span class="text-xs font-semibold" style="color:var(--ink-soft)">بۆ بەرواری:</span>
+        <input type="date" id="dateTo" class="px-2 py-1.5 text-sm">
+        <span id="rangeLabel" class="text-xs font-semibold mr-auto" style="color:var(--teal-dark)"></span>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="ledger"><thead><tr>
+          <th>#</th><th>ژمارە وەسڵ</th><th>بەروار</th><th>جۆر</th><th>دراو</th><th>بڕی پارە</th><th>مدین</th><th>دائن</th><th>نێرەر</th><th>وەرگر</th><th>دۆخ</th>
+        </tr></thead><tbody id="transactionsBody"></tbody><tfoot><tr id="tableFoot"></tr></tfoot></table>
+      </div>
+    </section>
+
+    <!-- MISC (مەتفەریقە) -->
+    <section id="tab-misc" class="tab-panel hidden">
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="font-head text-2xl font-bold">حەواڵەی مەتفەریقە</h2>
+        <div class="flex gap-2">
+          <button onclick="renderMisc()" class="px-3 py-2 rounded-lg text-sm font-semibold" style="background:var(--teal-light); color:var(--teal-dark)">🔄 ڕیفرێش</button>
+          <button id="disburseBtn" onclick="openDisburseForm()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">💸 صرف کردن</button>
+        </div>
+      </div>
+      <p class="text-sm mb-4" style="color:var(--ink-soft)">هەموو مامەڵەیەک کە مدین یان دائنی حسابی «مەتفەریقە» (١٠٦) بێت</p>
+      <div class="card overflow-x-auto">
+        <table class="ledger"><thead><tr><th>#</th><th>ژمارە وەسڵ</th><th>بەروار</th><th>بڕی پارە</th><th>مدین</th><th>نێرەر</th><th>وەرگر</th><th>تێبینی</th><th></th></tr></thead><tbody id="miscBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- STATEMENTS (کەشفی حساب) -->
+    <section id="tab-statements" class="tab-panel hidden">
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="font-head text-2xl font-bold">کەشفی حساب</h2>
+        <button onclick="renderStatementsTab()" class="px-3 py-2 rounded-lg text-sm font-semibold" style="background:var(--teal-light); color:var(--teal-dark)">🔄 ڕیفرێش</button>
+      </div>
+      <p class="text-sm mb-4" style="color:var(--ink-soft)">حسابێک هەڵبژێرە بۆ بینینی کەشفی تەواوی مامەڵەکانی</p>
+
+      <div class="relative mb-8">
+        <input type="text" id="statementSearch" autocomplete="off" placeholder="گەڕان بە ناو یان کۆدی حساب..." class="w-full px-4 py-2.5 text-sm">
+        <div id="statementSearchResults" class="hidden acct-dropdown"></div>
+      </div>
+
+      <div id="systemAccountsSection">
+        <h3 class="font-head font-semibold text-sm mb-3" style="color:var(--teal-dark)">🗄️ حساباتی سیستەم</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8" id="systemAccountsList"></div>
+      </div>
+
+      <div class="flex gap-2 mb-4">
+        <button data-debtview="debtors" class="debt-tab active px-4 py-2 rounded-full text-xs font-semibold">💰 قەرزی من لای خەڵک</button>
+        <button data-debtview="creditors" class="debt-tab px-4 py-2 rounded-full text-xs font-semibold">💸 قەرزی خەڵک لای من</button>
+      </div>
+      <p id="debtViewCaption" class="text-xs mb-3" style="color:var(--ink-soft)">ئەو کەسانەی قەرزاری منن</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="debtorsList"></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 hidden" id="creditorsList"></div>
+    </section>
+
+    <!-- USERS (admin only) -->
+    <section id="tab-users" class="tab-panel hidden">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="font-head text-2xl font-bold">بەکارهێنەران</h2>
+        <div class="flex gap-2">
+          <button onclick="renderStaffList()" class="px-3 py-2 rounded-lg text-sm font-semibold" style="background:var(--teal-light); color:var(--teal-dark)">🔄 ڕیفرێش</button>
+          <button id="addStaffBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">+ زیادکردنی بەکارهێنەر</button>
+        </div>
+      </div>
+      <div class="card p-4 mb-6 text-xs leading-relaxed" style="color:var(--ink-soft)">
+        <p class="font-semibold mb-1" style="color:var(--teal-dark)">چۆن بەکارهێنەرێکی نوێ زیاد بکەم؟</p>
+        ١) لە Supabase Dashboard → Authentication → Add User، هەژمارێکی نوێ (ئیمەیل و پاسوۆرد) دروست بکە.<br>
+        ٢) لەوێ، <strong>User UID</strong>ـەکەی کۆپی بکە (ژمارە/نووسینی درێژە لەژێر ناوی بەکارهێنەرەکە).<br>
+        ٣) لێرە دوگمەی «+ زیادکردنی بەکارهێنەر» بکە، UIDـەکە بلکێنە، ناوێک بۆ بنووسە، و مۆڵەتەکانی پێویست هەڵبژێرە.
+      </div>
+      <div class="grid grid-cols-1 gap-3" id="staffList"></div>
+    </section>
+
+    <!-- CUSTOMERS -->
+    <section id="tab-customers" class="tab-panel hidden">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="font-head text-2xl font-bold">کڕیاران</h2>
+        <div class="flex gap-2">
+          <button onclick="renderCustomers()" class="px-3 py-2 rounded-lg text-sm font-semibold" style="background:var(--teal-light); color:var(--teal-dark)">🔄 ڕیفرێش</button>
+          <button id="addCustomerBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">+ کڕیاری نوێ</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="customersList"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ==================== MODAL ==================== -->
+<div id="modalBackdrop" class="hidden fixed inset-0 bg-black/40 z-40 flex items-center justify-center px-4 py-6">
+  <div id="modalBox" class="card w-full max-w-lg p-6 z-50 fade-in max-h-[88vh] overflow-y-auto"></div>
+</div>
+
+<script>
+/* ======================================================
+   ڕێکخستنی Supabase
+====================================================== */
+const SUPABASE_URL = "https://jzobbmfngbvlqwgmvefq.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_MXxb5S0ztEgbr3iWgwnUmg_Rsk1PlbI";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let accountsCache = [];
+let selectedTransactionId = null;
+const kurdishMonths = ['یانواری','فێبرواری','مارس','ئەپریل','مایس','حوزەیران','تەمووز','ئاب','ئەیلوول','تشرینی یەکەم','تشرینی دووەم','کانونی یەکەم'];
+
+const TYPE_LABELS = { sent:'حەواڵەی ڕۆشتوو', received:'حەواڵەی هاتوو', receipt:'قبز/وەرگرتن', payment:'صرف/پارەدان', exchange:'کۆرینەوە' };
+const CUR_LABEL = { IQD:'د.ع', USD:'$', EUR:'€' };
+const SYSTEM_ACCOUNTS = [
+  { code:100, name:'صندوقی دۆلار', category:'cashbox', currency:'USD' },
+  { code:101, name:'عمولەی دۆلار', category:'commission', currency:'USD' },
+  { code:102, name:'صندوقی دینار', category:'cashbox', currency:'IQD' },
+  { code:103, name:'عمولەی دینار', category:'commission', currency:'IQD' },
+  { code:104, name:'صندوقی یۆرۆ', category:'cashbox', currency:'EUR' },
+  { code:105, name:'عمولەی یۆرۆ', category:'commission', currency:'EUR' },
+  { code:106, name:'مەتفەریقە', category:'misc', currency:null },
+];
+
+/* ---------- Helpers ---------- */
+const fmt = n => new Intl.NumberFormat('en-US').format(Number(n || 0));
+const todayStr = () => new Date().toISOString().slice(0,10);
+const fmtCur = (n, c) => c === 'IQD' ? `${fmt(n)} د.ع` : `${CUR_LABEL[c]}${fmt(n)}`;
+const toEnDate = iso => { if(!iso) return '—'; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
+function statusInfo(s){
+  if(s==='completed') return { label:'تەواوبوو', color:'var(--sage)' };
+  if(s==='pending') return { label:'چاوەڕوان', color:'var(--amber)' };
+  return { label:'هەڵوەشاوە', color:'var(--rust)' };
+}
+function showModal(html){ document.getElementById('modalBox').innerHTML = html; document.getElementById('modalBackdrop').classList.remove('hidden'); }
+function closeModal(){ document.getElementById('modalBackdrop').classList.add('hidden'); }
+document.getElementById('modalBackdrop').addEventListener('click', e=>{ if(e.target.id === 'modalBackdrop') closeModal(); });
+
+function findAccount(category, currency){ return accountsCache.find(a=>a.category===category && a.currency===currency); }
+function findMisc(){ return accountsCache.find(a=>a.category==='misc'); }
+function accountLabel(id){ const a = accountsCache.find(x=>x.id===id); return a ? `${a.code} — ${a.name}` : '—'; }
+function nextAccountCode(){ return Math.max(106, ...accountsCache.map(a=>a.code)) + 1; }
+
+/* ---------- Auth ---------- */
+document.getElementById('loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value, password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError'); errEl.classList.add('hidden');
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ errEl.textContent = "هەڵە: ئیمەیل یان پاسوۆرد هەڵەیە"; errEl.classList.remove('hidden'); return; }
+  await enterApp();
+});
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{ await sb.auth.signOut(); location.reload(); });
+document.getElementById('changePasswordBtn').addEventListener('click', ()=>{
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">گۆڕینی وشەی نهێنی</h3>
+    <form id="passwordForm" class="space-y-3">
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">وشەی نهێنی نوێ</label><input required type="password" minlength="6" id="newPassword" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">دووبارەکردنەوە</label><input required type="password" minlength="6" id="confirmPassword" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <p id="passwordMsg" class="text-xs hidden"></p>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">نوێکردنەوە</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>`);
+  document.getElementById('passwordForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const msgEl = document.getElementById('passwordMsg');
+    const p1 = document.getElementById('newPassword').value, p2 = document.getElementById('confirmPassword').value;
+    if(p1 !== p2){ msgEl.textContent = 'وشە نهێنییەکان وەک یەک نین'; msgEl.style.color = 'var(--rust)'; msgEl.classList.remove('hidden'); return; }
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    if(error){ msgEl.textContent = 'هەڵە: ' + error.message; msgEl.style.color = 'var(--rust)'; msgEl.classList.remove('hidden'); return; }
+    msgEl.textContent = 'نوێکرایەوە ✓'; msgEl.style.color = 'var(--sage)'; msgEl.classList.remove('hidden');
+    setTimeout(closeModal, 1500);
+  });
+});
+
+let myPermissions = null;
+
+async function checkSession(){
+  const { data } = await sb.auth.getSession();
+  if(data.session){ await enterApp(); }
+  else { document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('appShell').classList.add('hidden'); }
+}
+
+function hasPerm(key){
+  if(!myPermissions) return false;
+  if(myPermissions.is_admin) return true;
+  if(!key) return true;
+  return !!myPermissions[key];
+}
+
+async function loadMyPermissions(){
+  const { data: userRes } = await sb.auth.getUser();
+  const uid = userRes.user.id;
+  const { data: allRows } = await sb.from('staff_permissions').select('*');
+  if(!allRows || allRows.length === 0){
+    // bootstrap: first ever user on this system becomes admin automatically
+    const { data: created } = await sb.from('staff_permissions').insert({
+      user_id: uid, name: userRes.user.email, is_admin: true
+    }).select().single();
+    return created;
+  }
+  const mine = allRows.find(p => p.user_id === uid);
+  return mine || null;
+}
+
+function applyPermissionGating(){
+  document.querySelectorAll('.nav-item').forEach(btn=>{
+    const perm = btn.dataset.perm;
+    let allowed = true;
+    if(perm === 'admin') allowed = myPermissions.is_admin;
+    else if(perm) allowed = hasPerm(perm);
+    btn.classList.toggle('hidden', !allowed);
+  });
+  document.getElementById('currentUserLabel').textContent = `${myPermissions.name}${myPermissions.is_admin ? ' (ئەدمین)' : ''}`;
+
+  document.getElementById('editActionBtn').classList.toggle('hidden', !hasPerm('can_edit_transactions'));
+  document.getElementById('deleteActionBtn').classList.toggle('hidden', !hasPerm('can_delete_transactions'));
+  document.getElementById('disburseBtn').classList.toggle('hidden', !hasPerm('can_disburse'));
+  document.getElementById('systemAccountsSection').classList.toggle('hidden', !hasPerm('can_view_system_accounts'));
+}
+
+async function enterApp(){
+  document.getElementById('loginScreen').classList.add('hidden');
+
+  myPermissions = await loadMyPermissions();
+  if(!myPermissions){
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('loginError').textContent = 'هەژمارەکەت مۆڵەتی نییە بۆ ئەم سیستەمە. پەیوەندی بە بەڕێوەبەر بکە.';
+    document.getElementById('loginError').classList.remove('hidden');
+    await sb.auth.signOut();
+    return;
+  }
+
+  document.getElementById('appShell').classList.remove('hidden');
+  applyPermissionGating();
+
+  await seedSystemAccounts();
+  await loadAccounts();
+
+  const from = new Date(); from.setDate(1);
+  document.getElementById('dateFrom').value = from.toISOString().slice(0,10);
+  document.getElementById('dateTo').value = todayStr();
+  document.getElementById('dateFrom').addEventListener('change', renderTransactions);
+  document.getElementById('dateTo').addEventListener('change', renderTransactions);
+
+  if(hasPerm('can_view_transactions')) await renderTransactions();
+  if(hasPerm('can_manage_customers')) await renderCustomers();
+  if(hasPerm('can_view_misc')) await renderMisc();
+  if(hasPerm('can_view_statements')) await renderStatementsTab();
+  if(myPermissions.is_admin) await renderStaffList();
+}
+
+async function seedSystemAccounts(){
+  const { data } = await sb.from('accounts').select('code');
+  const existing = new Set((data||[]).map(a=>a.code));
+  const missing = SYSTEM_ACCOUNTS.filter(a=>!existing.has(a.code));
+  if(missing.length) await sb.from('accounts').insert(missing);
+}
+async function loadAccounts(){
+  const { data } = await sb.from('accounts').select('*').order('code');
+  accountsCache = data || [];
+}
+async function nextVoucherNo(){
+  const { data } = await sb.from('transactions').select('voucher_no').order('voucher_no', { ascending:false }).limit(1);
+  return (data && data.length && data[0].voucher_no) ? data[0].voucher_no + 1 : 1;
+}
+
+/* ---------- Staff / Permissions management (admin only) ---------- */
+const PERM_LABELS = {
+  can_create_transactions: 'دروستکردنی مامەڵەی نوێ (سەنەدەکان)',
+  can_view_transactions: 'بینینی لیستی مامەڵەکان',
+  can_edit_transactions: 'تعدیلکردنی مامەڵەکان',
+  can_delete_transactions: 'سڕینەوەی مامەڵەکان',
+  can_view_misc: 'بینینی حەواڵەی مەتفەریقە',
+  can_disburse: 'صرفکردن لە مەتفەریقە',
+  can_view_statements: 'کەشفی حسابی کڕیاران',
+  can_view_system_accounts: 'باڵانسی سندوق/عمولە',
+  can_manage_customers: 'بەڕێوەبردنی کڕیاران'
+};
+
+async function renderStaffList(){
+  const wrap = document.getElementById('staffList');
+  const { data } = await sb.from('staff_permissions').select('*').order('created_at');
+  const rows = (data || []).filter(p => !p.is_admin);
+  if(!rows.length){ wrap.innerHTML = `<p class="text-sm" style="color:var(--ink-soft)">هێشتا هیچ بەکارهێنەرێکی تر زیاد نەکراوە.</p>`; return; }
+  wrap.innerHTML = rows.map(p=>`
+    <div class="card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <p class="font-semibold text-sm">${p.name}</p>
+        <button onclick="removeStaff('${p.id}')" class="text-xs" style="color:var(--rust)">لابردنی دەستپێگەیشتن</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+        ${Object.entries(PERM_LABELS).map(([key,label])=>`
+          <label class="flex items-center gap-2 text-xs">
+            <input type="checkbox" onchange="toggleStaffPerm('${p.id}','${key}',this.checked)" ${p[key] ? 'checked' : ''}>
+            <span>${label}</span>
+          </label>`).join('')}
+      </div>
+    </div>`).join('');
+}
+async function toggleStaffPerm(id, key, value){
+  await sb.from('staff_permissions').update({ [key]: value }).eq('id', id);
+}
+async function removeStaff(id){
+  if(!confirm('دڵنیایت لە لابردنی دەستپێگەیشتنی ئەم بەکارهێنەرە؟')) return;
+  await sb.from('staff_permissions').delete().eq('id', id);
+  await renderStaffList();
+}
+document.getElementById('addStaffBtn').addEventListener('click', ()=>{
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">زیادکردنی بەکارهێنەری نوێ</h3>
+    <form id="staffForm" class="space-y-3">
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">User UID (لە Supabase Dashboard)</label><input required id="sUid" placeholder="00000000-0000-0000-0000-000000000000" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">ناوی بەکارهێنەر</label><input required id="sName" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-2">
+        ${Object.entries(PERM_LABELS).map(([key,label])=>`
+          <label class="flex items-center gap-2 text-xs">
+            <input type="checkbox" id="perm_${key}" checked>
+            <span>${label}</span>
+          </label>`).join('')}
+      </div>
+      <p id="staffMsg" class="text-xs hidden" style="color:var(--rust)"></p>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">زیادکردن</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>`);
+  document.getElementById('staffForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const payload = { user_id: document.getElementById('sUid').value.trim(), name: document.getElementById('sName').value, is_admin: false };
+    Object.keys(PERM_LABELS).forEach(key=>{ payload[key] = document.getElementById('perm_'+key).checked; });
+    const { error } = await sb.from('staff_permissions').insert(payload);
+    if(error){
+      const msgEl = document.getElementById('staffMsg');
+      msgEl.textContent = 'هەڵە: ' + error.message; msgEl.classList.remove('hidden');
+      return;
+    }
+    closeModal();
+    await renderStaffList();
+  });
+});
+
+/* ---------- Navigation ---------- */
+document.querySelectorAll('.nav-item').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.add('hidden'));
+    document.getElementById('tab-'+btn.dataset.tab).classList.remove('hidden');
+  });
+});
+
+/* ---------- Customers ---------- */
+async function renderCustomers(){
+  const wrap = document.getElementById('customersList');
+  const customers = accountsCache.filter(a=>a.category==='customer');
+  if(!customers.length){ wrap.innerHTML = `<p class="text-sm col-span-2" style="color:var(--ink-soft)">هێشتا کڕیارت زیاد نەکردووە.</p>`; return; }
+  wrap.innerHTML = customers.map(c=>`
+    <div class="card p-4">
+      <div class="flex items-center justify-between">
+        <p class="font-semibold text-sm">${c.name}</p>
+        <span class="text-xs font-bold px-2 py-0.5 rounded" style="background:var(--teal-light); color:var(--teal-dark)">#${c.code}</span>
+      </div>
+      <p class="text-xs mt-1" style="color:var(--ink-soft)">${c.phone || 'ژمارە تۆمار نەکراوە'}${c.city ? ' — '+c.city : ''}</p>
+      <button onclick="deleteCustomer('${c.id}')" class="w-full mt-3 text-xs py-1.5 rounded-lg font-semibold" style="background:#FBE9E6; color:var(--rust)">🗑️ سڕینەوە</button>
+    </div>`).join('');
+}
+async function deleteCustomer(id){
+  if(!confirm('دڵنیایت لە سڕینەوەی ئەم کڕیارە؟ ئەگەر مامەڵەی پێشووی هەبێت، ئەو مامەڵانە دەمێننەوە بەڵام لینکیان بەم کڕیارە دەبڕدرێت.')) return;
+  await sb.from('accounts').delete().eq('id', id);
+  await loadAccounts();
+  await renderCustomers();
+  await renderStatementsTab();
+}
+document.getElementById('addCustomerBtn').addEventListener('click', ()=>{
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">کڕیاری نوێ</h3>
+    <p class="text-xs mb-3" style="color:var(--ink-soft)">کۆدی خۆکار: <span class="font-bold" style="color:var(--teal-dark)">#${nextAccountCode()}</span></p>
+    <form id="customerForm" class="space-y-3">
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">ناو</label><input required id="cName" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">ژمارە تەلەفۆن</label><input id="cPhone" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">شار</label><input id="cCity" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">پاشەکەوتکردن</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>`);
+  document.getElementById('customerForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    await sb.from('accounts').insert({ code: nextAccountCode(), category:'customer', name: document.getElementById('cName').value, phone: document.getElementById('cPhone').value, city: document.getElementById('cCity').value });
+    closeModal(); await loadAccounts(); await renderCustomers(); await renderStatementsTab();
+  });
+});
+
+/* ---------- Account picker ---------- */
+function accountPickerHTML(fieldId, labelText, placeholder){
+  return `<div class="relative">
+    <label class="text-xs font-medium" style="color:var(--ink-soft)">${labelText}</label>
+    <input type="text" id="${fieldId}_search" autocomplete="off" class="w-full mt-1 px-3 py-2 text-sm" placeholder="${placeholder}">
+    <input type="hidden" id="${fieldId}_id">
+    <div id="${fieldId}_dropdown" class="hidden acct-dropdown"></div>
+  </div>`;
+}
+function wireAccountPicker(fieldId, presetAccount){
+  const searchEl = document.getElementById(fieldId+'_search'), idEl = document.getElementById(fieldId+'_id'), dropdownEl = document.getElementById(fieldId+'_dropdown');
+  if(presetAccount){ searchEl.value = `${presetAccount.code} — ${presetAccount.name}`; idEl.value = presetAccount.id; }
+  function renderList(query){
+    const q = (query||'').trim().toLowerCase();
+    const filtered = !q ? accountsCache.slice(0,25) : accountsCache.filter(a=> String(a.code).includes(q) || a.name.toLowerCase().includes(q)).slice(0,25);
+    dropdownEl.innerHTML = filtered.length
+      ? filtered.map(a=>`<div class="acct-item" onmousedown="selectAccount('${fieldId}','${a.id}')"><span class="font-semibold" style="color:var(--teal-dark)">${a.code}</span> — ${a.name}</div>`).join('')
+      : `<div class="acct-item" style="color:var(--ink-soft)">هیچ نەدۆزرایەوە — دوای خەزنکردن بە ناوی نوێ زیاد دەکرێت</div>`;
+    dropdownEl.classList.remove('hidden');
+  }
+  searchEl.addEventListener('focus', ()=> renderList(''));
+  searchEl.addEventListener('input', ()=>{ idEl.value=''; renderList(searchEl.value); });
+  searchEl.addEventListener('blur', ()=> setTimeout(()=>dropdownEl.classList.add('hidden'), 150));
+}
+function selectAccount(fieldId, accountId){
+  const a = accountsCache.find(x=>x.id===accountId); if(!a) return;
+  document.getElementById(fieldId+'_search').value = `${a.code} — ${a.name}`;
+  document.getElementById(fieldId+'_id').value = a.id;
+  document.getElementById(fieldId+'_dropdown').classList.add('hidden');
+}
+async function resolveAccountId(fieldId){
+  const idEl = document.getElementById(fieldId+'_id'), searchEl = document.getElementById(fieldId+'_search');
+  if(idEl.value) return idEl.value;
+  const name = searchEl.value.trim();
+  if(!name) return null;
+  const code = nextAccountCode();
+  const { data } = await sb.from('accounts').insert({ name, category:'customer', code }).select().single();
+  accountsCache.push(data);
+  return data.id;
+}
+
+/* ---------- Unified Transactions List ---------- */
+async function renderTransactions(){
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+  document.getElementById('rangeLabel').textContent = `لە ${toEnDate(from)} بۆ ${toEnDate(to)}`;
+
+  const { data } = await sb.from('transactions').select('*').gte('transaction_date', from).lte('transaction_date', to).order('transaction_date', { ascending:false });
+  const rows = data || [];
+  window._txCache = rows;
+  selectedTransactionId = null;
+
+  const body = document.getElementById('transactionsBody');
+  if(!rows.length){
+    body.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:24px; color:var(--ink-soft);">هیچ مامەڵەیەک لەم ماوەیەدا نییە</td></tr>`;
+    document.getElementById('tableFoot').innerHTML = ''; return;
+  }
+  const totals = {};
+  rows.forEach(t=>{ totals[t.currency] = (totals[t.currency]||0) + Number(t.amount); });
+  body.innerHTML = rows.map((t,i)=>{
+    const st = statusInfo(t.status);
+    return `
+    <tr id="row-${t.id}" onclick="selectRow('${t.id}')">
+      <td>${i+1}</td><td>${t.voucher_no ?? '—'}</td><td>${toEnDate(t.transaction_date)}</td><td>${TYPE_LABELS[t.type]}</td><td>${CUR_LABEL[t.currency]}</td>
+      <td class="num font-semibold">${fmtCur(t.amount, t.currency)}</td>
+      <td style="color:var(--debit)">${accountLabel(t.debit_account_id)}</td>
+      <td style="color:var(--credit)">${accountLabel(t.credit_account_id)}</td>
+      <td>${t.sender_name || '—'}</td><td>${t.receiver_name || '—'}</td>
+      <td><span class="status-badge" style="color:${st.color}; border-color:${st.color}">${st.label}</span></td>
+    </tr>`;
+  }).join('');
+  const totalParts = Object.entries(totals).map(([cur,v])=>fmtCur(v,cur)).join('   ');
+  document.getElementById('tableFoot').innerHTML = `<td colspan="5">کۆی گشتی</td><td colspan="6">${totalParts || '۰'}</td>`;
+}
+
+function selectRow(id){
+  selectedTransactionId = id;
+  document.querySelectorAll('#transactionsBody tr').forEach(r=>r.classList.remove('selected'));
+  const row = document.getElementById('row-'+id);
+  if(row) row.classList.add('selected');
+}
+function getSelectedTx(){
+  if(!selectedTransactionId){ alert('تکایە یەکەم جار ڕیزێک هەڵبژێرە بە کلیککردنی لەسەری'); return null; }
+  return (window._txCache || []).find(t=>t.id === selectedTransactionId);
+}
+function actionEdit(){ const t = getSelectedTx(); if(t) openTransactionForm(t.type, t); }
+function actionReceipt(){ const t = getSelectedTx(); if(t) printReceipt(t.id); }
+async function actionDelete(){
+  const t = getSelectedTx(); if(!t) return;
+  if(!confirm('دڵنیایت لە سڕینەوەی ئەم مامەڵەیە؟')) return;
+  await sb.from('transactions').delete().eq('id', t.id);
+  if(t.source_transaction_id){
+    await sb.from('transactions').update({ disbursed: false }).eq('id', t.source_transaction_id);
+  }
+  selectedTransactionId = null;
+  await renderTransactions(); await renderMisc(); await renderStatementsTab();
+}
+
+/* ---------- Misc (مەتفەریقە) view ---------- */
+async function renderMisc(){
+  const misc = findMisc();
+  const body = document.getElementById('miscBody');
+  if(!misc){ body.innerHTML = ''; return; }
+  const { data } = await sb.from('transactions').select('*')
+    .or(`debit_account_id.eq.${misc.id},credit_account_id.eq.${misc.id}`)
+    .eq('disbursed', false)
+    .order('transaction_date', { ascending:false });
+  const rows = data || [];
+  window._miscCache = rows;
+  if(!rows.length){ body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--ink-soft);">هیچ مامەڵەیەکی مەتفەریقە نییە</td></tr>`; return; }
+  body.innerHTML = rows.map((t,i)=>`
+    <tr>
+      <td>${i+1}</td><td>${t.voucher_no ?? '—'}</td><td>${toEnDate(t.transaction_date)}</td>
+      <td class="num font-semibold">${fmtCur(t.amount, t.currency)}</td>
+      <td style="color:var(--debit)">${accountLabel(t.debit_account_id)}</td>
+      <td>${t.sender_name || '—'}</td><td>${t.receiver_name || '—'}</td>
+      <td>${t.notes || '—'}</td>
+      <td>${hasPerm('can_disburse') ? `<button onclick="openDisburseForm(window._miscCache[${i}])" class="text-xs font-semibold px-3 py-1.5 rounded-full" style="background:#FBE9E6; color:var(--rust)">💸 صرف کردن</button>` : ''}</td>
+    </tr>`).join('');
+}
+
+/* ---------- صرف کردن (Disburse from متفەریقە) ---------- */
+function openDisburseForm(sourceTx){
+  const prefillReceiver = sourceTx?.receiver_name || '';
+  const prefillSender = sourceTx?.sender_name || '';
+  const prefillAmount = sourceTx?.amount || '';
+  const prefillCurrency = sourceTx?.currency || 'USD';
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">صرف کردن — لە مەتفەریقە</h3>
+    ${sourceTx ? `<p class="text-xs mb-3" style="color:var(--ink-soft)">لە حەواڵەی وەسڵ #${sourceTx.voucher_no ?? '—'}</p>` : ''}
+    <form id="disburseForm" class="space-y-3">
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">ناوی نێرەر</label><input id="dSender" value="${prefillSender}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">ناوی وەرگر</label><input required id="dReceiver" value="${prefillReceiver}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div class="grid grid-cols-3 gap-2">
+        <div class="col-span-2"><label class="text-xs font-medium" style="color:var(--ink-soft)">بڕی پارە</label><input required type="number" step="0.01" id="dAmount" value="${prefillAmount}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+        <div><label class="text-xs font-medium" style="color:var(--ink-soft)">دراو</label>
+          <select id="dCurrency" class="w-full mt-1 px-3 py-2 text-sm">
+            <option value="USD" ${prefillCurrency==='USD'?'selected':''}>$</option>
+            <option value="IQD" ${prefillCurrency==='IQD'?'selected':''}>د.ع</option>
+            <option value="EUR" ${prefillCurrency==='EUR'?'selected':''}>€</option>
+          </select>
+        </div>
+      </div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">عمولە</label><input type="number" step="0.01" id="dCommission" value="0" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">ژمارە تەلەفۆن</label><input id="dPhone" value="${sourceTx?.phone || ''}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">تێبینی</label><textarea id="dNotes" rows="2" class="w-full mt-1 px-3 py-2 text-sm">${sourceTx?.notes || ''}</textarea></div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">بەروار</label><input required type="date" id="dDate" value="${todayStr()}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">صرف کردن</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>`);
+  document.getElementById('disburseForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const currency = document.getElementById('dCurrency').value;
+    const misc = findMisc();
+    const cashAcc = findAccount('cashbox', currency);
+    const voucher_no = await nextVoucherNo();
+    const { data: inserted } = await sb.from('transactions').insert({
+      type: 'payment', voucher_no,
+      debit_account_id: misc?.id || null,
+      credit_account_id: cashAcc?.id || null,
+      sender_name: document.getElementById('dSender').value,
+      receiver_name: document.getElementById('dReceiver').value,
+      phone: document.getElementById('dPhone').value,
+      currency, amount: document.getElementById('dAmount').value,
+      commission_in: document.getElementById('dCommission').value || 0,
+      transaction_date: document.getElementById('dDate').value,
+      notes: document.getElementById('dNotes').value,
+      status: 'completed',
+      disbursed: true,
+      source_transaction_id: sourceTx?.id || null
+    }).select().single();
+    if(sourceTx){
+      await sb.from('transactions').update({ disbursed: true }).eq('id', sourceTx.id);
+    }
+    await renderMisc(); await renderTransactions(); await renderStatementsTab();
+    showModal(`
+      <div class="text-center py-4">
+        <p class="text-2xl mb-2">✅</p>
+        <p class="font-head font-bold mb-4">صرفکردن بە سەرکەوتوویی تۆمارکرا</p>
+        <div class="flex gap-2">
+          <button onclick="printReceipt('${inserted.id}')" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">🖨️ چاپکردنی وەسڵ</button>
+          <button onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">داخستن</button>
+        </div>
+      </div>`);
+  });
+}
+
+/* ---------- Transaction Form (add or edit) ---------- */
+function openTransactionForm(type, editTx){
+  const isExchange = type === 'exchange';
+  const isEdit = !!editTx;
+
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">${isEdit ? 'تعدیلی سەند' : 'سەندی نوێ'} — ${TYPE_LABELS[type]}</h3>
+    <form id="transactionForm" class="space-y-3">
+      ${isExchange ? `
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-2"><label class="text-xs font-medium" style="color:var(--ink-soft)">بڕی دراوە</label><input required type="number" step="0.01" id="xAmount" class="w-full mt-1 px-3 py-2 text-sm" value="${editTx?.amount || ''}"></div>
+          <div><label class="text-xs font-medium" style="color:var(--ink-soft)">لە دراو</label>
+            <select id="xCurrency" class="w-full mt-1 px-3 py-2 text-sm">
+              <option value="USD" ${editTx?.currency==='USD'?'selected':''}>$</option><option value="IQD" ${editTx?.currency==='IQD'?'selected':''}>د.ع</option><option value="EUR" ${editTx?.currency==='EUR'?'selected':''}>€</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-2"><label class="text-xs font-medium" style="color:var(--ink-soft)">بڕی وەرگیراو</label><input type="number" step="0.01" id="xToAmount" class="w-full mt-1 px-3 py-2 text-sm" value="${editTx?.exchange_to_amount || ''}"></div>
+          <div><label class="text-xs font-medium" style="color:var(--ink-soft)">بۆ دراو</label>
+            <select id="xToCurrency" class="w-full mt-1 px-3 py-2 text-sm">
+              <option value="IQD" ${editTx?.exchange_to_currency==='IQD'?'selected':''}>د.ع</option><option value="USD" ${editTx?.exchange_to_currency==='USD'?'selected':''}>$</option><option value="EUR" ${editTx?.exchange_to_currency==='EUR'?'selected':''}>€</option>
+            </select>
+          </div>
+        </div>
+      ` : `
+        ${accountPickerHTML('xDebit', 'مدین (قەرزار)', 'گەڕان بە ناو یان کۆد...')}
+        ${accountPickerHTML('xCredit', 'دائن (پارەدەر)', 'گەڕان بە ناو یان کۆد...')}
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="text-xs font-medium" style="color:var(--ink-soft)">عمولەی وەرگرتن</label><input type="number" step="0.01" id="xCommissionIn" value="${editTx?.commission_in ?? 0}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+          <div><label class="text-xs font-medium" style="color:var(--ink-soft)">عمولەی دان</label><input type="number" step="0.01" id="xCommissionOut" value="${editTx?.commission_out ?? 0}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+        </div>
+        <div><label class="text-xs font-medium" style="color:var(--ink-soft)">ناوی نێرەر</label><input id="xSender" class="w-full mt-1 px-3 py-2 text-sm" value="${editTx?.sender_name || ''}"></div>
+        <div><label class="text-xs font-medium" style="color:var(--ink-soft)">ناوی وەرگر</label><input id="xReceiver" class="w-full mt-1 px-3 py-2 text-sm" value="${editTx?.receiver_name || ''}"></div>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-2"><label class="text-xs font-medium" style="color:var(--ink-soft)">بڕی پارە</label><input required type="number" step="0.01" id="xAmount" class="w-full mt-1 px-3 py-2 text-sm" value="${editTx?.amount || ''}"></div>
+          <div><label class="text-xs font-medium" style="color:var(--ink-soft)">دراو</label>
+            <select id="xCurrency" class="w-full mt-1 px-3 py-2 text-sm">
+              <option value="USD" ${editTx?.currency==='USD'?'selected':''}>$</option><option value="IQD" ${editTx?.currency==='IQD'?'selected':''}>د.ع</option><option value="EUR" ${editTx?.currency==='EUR'?'selected':''}>€</option>
+            </select>
+          </div>
+        </div>
+        <div><label class="text-xs font-medium" style="color:var(--ink-soft)">دۆخ</label>
+          <select id="xStatus" class="w-full mt-1 px-3 py-2 text-sm">
+            <option value="completed" ${(!editTx||editTx.status==='completed')?'selected':''}>تەواوبوو</option>
+            <option value="pending" ${editTx?.status==='pending'?'selected':''}>چاوەڕوان</option>
+            <option value="cancelled" ${editTx?.status==='cancelled'?'selected':''}>هەڵوەشاوە</option>
+          </select>
+        </div>
+      `}
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">بەروار</label><input required type="date" id="xDate" value="${editTx?.transaction_date || todayStr()}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">تێبینی</label><textarea id="xNotes" rows="2" class="w-full mt-1 px-3 py-2 text-sm">${editTx?.notes || ''}</textarea></div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">خەزنکردن</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>
+  `);
+
+  if(!isExchange){
+    wireAccountPicker('xDebit', editTx ? accountsCache.find(a=>a.id===editTx.debit_account_id) : null);
+    wireAccountPicker('xCredit', editTx ? accountsCache.find(a=>a.id===editTx.credit_account_id) : null);
+  }
+
+  document.getElementById('transactionForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const dateVal = document.getElementById('xDate').value;
+    const payload = { type, currency: document.getElementById('xCurrency').value, amount: document.getElementById('xAmount').value, transaction_date: dateVal, notes: document.getElementById('xNotes').value };
+    if(isExchange){
+      const toCur = document.getElementById('xToCurrency').value;
+      payload.exchange_to_currency = toCur;
+      payload.exchange_to_amount = document.getElementById('xToAmount').value || null;
+      payload.status = 'completed';
+      payload.debit_account_id = findAccount('cashbox', toCur)?.id || null;
+      payload.credit_account_id = findAccount('cashbox', payload.currency)?.id || null;
+    } else {
+      payload.debit_account_id = await resolveAccountId('xDebit');
+      payload.credit_account_id = await resolveAccountId('xCredit');
+      payload.commission_in = document.getElementById('xCommissionIn').value || 0;
+      payload.commission_out = document.getElementById('xCommissionOut').value || 0;
+      payload.sender_name = document.getElementById('xSender').value;
+      payload.receiver_name = document.getElementById('xReceiver').value;
+      payload.status = document.getElementById('xStatus').value;
+    }
+
+    let savedId;
+    if(isEdit){
+      await sb.from('transactions').update(payload).eq('id', editTx.id);
+      savedId = editTx.id;
+    } else {
+      payload.voucher_no = await nextVoucherNo();
+      const { data: inserted } = await sb.from('transactions').insert(payload).select().single();
+      savedId = inserted.id;
+    }
+
+    await renderTransactions(); await renderMisc(); await loadAccounts(); await renderCustomers(); await renderStatementsTab();
+
+    showModal(`
+      <div class="text-center py-4">
+        <p class="text-2xl mb-2">✅</p>
+        <p class="font-head font-bold mb-4">سەند بە سەرکەوتوویی ${isEdit ? 'تعدیل کرا' : 'خەزنکرا'}</p>
+        <div class="flex gap-2">
+          <button onclick="printReceipt('${savedId}')" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">🖨️ چاپکردنی وەسڵ</button>
+          <button onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">داخستن</button>
+        </div>
+      </div>`);
+  });
+}
+
+/* ---------- Receipt (وەسڵ) ---------- */
+/* ---------- Kurdish number-to-words for spelled-out amounts ---------- */
+function numToWordsKu(num){
+  num = Math.round(Number(num) || 0);
+  if(num === 0) return 'سفر';
+  const ones = ['', 'یەک','دوو','سێ','چوار','پێنج','شەش','حەوت','هەشت','نۆ'];
+  const teens = ['دە','یازدە','دوازدە','سێزدە','چواردە','پازدە','شازدە','حەڤدە','هەژدە','نۆزدە'];
+  const tens = ['','','بیست','سی','چل','پەنجا','شەست','حەفتا','هەشتا','نەوەد'];
+  function threeDigits(n){
+    let parts = [];
+    const h = Math.floor(n/100), r = n%100;
+    if(h>0) parts.push((h>1 ? ones[h]+' ' : '')+'سەد');
+    if(r>0){
+      if(r<10) parts.push(ones[r]);
+      else if(r<20) parts.push(teens[r-10]);
+      else {
+        const tt = Math.floor(r/10), o = r%10;
+        parts.push(o>0 ? tens[tt]+' و '+ones[o] : tens[tt]);
+      }
+    }
+    return parts.join(' و ');
+  }
+  const groups = [{ value:1000000000, name:'ملیار' }, { value:1000000, name:'ملیۆن' }, { value:1000, name:'هەزار' }];
+  let result = [], remaining = num;
+  groups.forEach(g=>{
+    if(remaining >= g.value){
+      result.push(threeDigits(Math.floor(remaining/g.value)) + ' ' + g.name);
+      remaining = remaining % g.value;
+    }
+  });
+  if(remaining > 0) result.push(threeDigits(remaining));
+  return result.join(' و ');
+}
+const CUR_WORD = { IQD:'دینار', USD:'دۆلار', EUR:'یۆرۆ' };
+
+/* ---------- Receipt (وەسڵ) — Danyar Office branded voucher ---------- */
+async function printReceipt(id){
+  const { data: t } = await sb.from('transactions').select('*').eq('id', id).single();
+  if(!t) return;
+  const printedAt = new Date().toLocaleString('en-GB', { hour12:false });
+  const isExchange = t.type === 'exchange';
+  const amountWords = `تەنها ${numToWordsKu(t.amount)} ${CUR_WORD[t.currency]}`;
+  const qrData = encodeURIComponent(`DANYAR|${t.voucher_no ?? ''}|${t.transaction_date}|${t.amount}${t.currency}`);
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrData}`;
+
+  const fieldsHtml = isExchange ? `
+    <div class="row"><div class="chip">لە دراو</div><div class="val">${CUR_LABEL[t.currency]}</div></div>
+    <div class="row"><div class="chip">بۆ دراو</div><div class="val">${CUR_LABEL[t.exchange_to_currency || t.currency]}</div></div>
+    <div class="row"><div class="chip">بڕی وەرگیراو</div><div class="val num">${t.exchange_to_amount ? fmtCur(t.exchange_to_amount, t.exchange_to_currency) : '—'}</div></div>
+  ` : `
+    <div class="row"><div class="chip">نێرەر</div><div class="val">${t.sender_name || '—'}</div></div>
+    <div class="row two-col">
+      <div class="col"><div class="chip">وەرگر</div><div class="val">${t.receiver_name || '—'}</div></div>
+      <div class="col"><div class="chip">وەکیل</div><div class="val">${accountLabel(t.credit_account_id)}</div></div>
+    </div>
+    <div class="row"><div class="chip">موبایل</div><div class="val">${t.phone || '—'}</div></div>
+    <div class="row"><div class="chip">تێبینی</div><div class="val">${t.notes || '—'}</div></div>
+  `;
+
+  const html = `<!DOCTYPE html><html lang="ckb" dir="rtl"><head><meta charset="UTF-8"><title>وەسڵ #${t.voucher_no ?? ''}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Noto+Kufi+Arabic:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Vazirmatn',sans-serif; color:#1C2B2A; background:#EFEFEF; padding:24px;}
+  .font-head{font-family:'Noto Kufi Arabic',sans-serif;}
+  .num{font-variant-numeric: tabular-nums; direction:ltr; unicode-bidi:isolate;}
+  .sheet{max-width:640px; margin:0 auto; background:#fff; border:2px dashed #16A8A2; border-radius:10px; padding:26px;}
+  .top{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:14px;}
+  .brand h1{font-family:'Noto Kufi Arabic',sans-serif; font-size:26px; color:#16324A;}
+  .brand .sub1{font-size:11px; color:#444; margin-top:2px;}
+  .brand .sub2{font-size:11px; color:#16A8A2; font-weight:700; margin-top:1px;}
+  .logo{display:flex; align-items:center; gap:6px;}
+  .logo .mark{width:34px;height:34px;border-radius:50%; border:4px solid #1D6FC4; position:relative;}
+  .logo .mark::after{content:'';position:absolute; inset:6px; border:2px solid #1D6FC4; border-radius:50%;}
+  .logo .word{font-family:'Noto Kufi Arabic',sans-serif; font-size:20px; font-weight:800; color:#1D6FC4;}
+  .logo .word span{color:#16324A;}
+  .qr img{width:82px; height:82px; border:1px solid #ddd; padding:3px;}
+
+  .badges{display:flex; gap:10px; margin-bottom:12px;}
+  .badge{flex:1; background:#CDEFEE; border-radius:6px; padding:9px 12px; text-align:center; font-weight:800; font-family:'Noto Kufi Arabic',sans-serif; font-size:14px; color:#16324A;}
+
+  .metabar{display:flex; border:1.5px solid #16324A; border-radius:6px; overflow:hidden; margin-bottom:14px;}
+  .metabar .cell{flex:1; padding:8px 12px; font-size:12.5px; display:flex; justify-content:space-between; align-items:center;}
+  .metabar .cell:first-child{border-left:1.5px solid #16324A;}
+  .metabar .cell b{font-weight:700; direction:ltr; unicode-bidi:isolate;}
+
+  .amount-box{display:flex; border:2px solid #16324A; border-radius:6px; overflow:hidden; margin-bottom:6px;}
+  .amount-box .cur{background:#CDEFEE; padding:14px 22px; font-weight:800; font-size:18px; display:flex; align-items:center; border-left:2px solid #16324A;}
+  .amount-box .amt{flex:1; padding:14px 22px; font-weight:800; font-size:26px; text-align:center; font-family:'Noto Kufi Arabic',sans-serif;}
+  .words-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;}
+  .words-row .words{font-size:12.5px; color:#333;}
+  .words-row .lbl{background:#CDEFEE; border-radius:6px; padding:6px 14px; font-weight:700; font-size:12px;}
+
+  .row{display:flex; align-items:center; border-bottom:1px solid #EEE; padding:8px 0;}
+  .two-col{gap:12px;}
+  .col{flex:1; display:flex; align-items:center;}
+  .chip{background:#CDEFEE; border-radius:6px; padding:6px 14px; font-weight:700; font-size:12px; margin-left:10px; white-space:nowrap;}
+  .val{font-size:13px; font-weight:600; flex:1;}
+
+  .footer{margin-top:20px; padding-top:14px; border-top:1px dashed #ccc;}
+  .footer .accountant{font-size:11px; color:#555; margin-bottom:10px;}
+  .footer .accountant b{font-family:'Noto Kufi Arabic',sans-serif; font-size:13px; display:block; color:#16324A;}
+  .footer .sig{font-size:10px; color:#777; text-align:center; line-height:1.5;}
+  .footer .contact{font-size:11px; color:#16324A; font-weight:700; text-align:center; margin-top:12px; direction:ltr; unicode-bidi:isolate;}
+  .footer .addr{font-size:10.5px; color:#555; text-align:center; margin-top:4px;}
+
+  .toolbar{max-width:640px; margin:0 auto 14px;}
+  .toolbar button{font-family:'Vazirmatn',sans-serif; background:#16A8A2; color:#fff; border:none; padding:10px 20px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer;}
+  @media print{ body{background:#fff; padding:0;} .toolbar{display:none;} .sheet{max-width:100%;} }
+</style></head><body>
+  <div class="toolbar"><button onclick="window.print()">🖨️ چاپکردن / هەڵگرتن وەک PDF</button></div>
+  <div class="sheet">
+
+    <div class="top">
+      <div class="logo">
+        <div class="mark"></div>
+        <div class="word">D<span>ANYAR</span></div>
+      </div>
+      <div class="brand" style="text-align:center;">
+        <h1>نوسینگەی دانیار</h1>
+        <p class="sub2">مکتب دانیار</p>
+        <p class="sub1">بۆ ئاڵوگۆڕی دراو - سنووردار</p>
+      </div>
+      <div class="qr"><img src="${qrUrl}" alt="QR"></div>
+    </div>
+
+    <div class="badges">
+      <div class="badge">${CUR_LABEL[t.currency]} — ${t.currency}</div>
+      <div class="badge">${TYPE_LABELS[t.type]}</div>
+    </div>
+
+    <div class="metabar">
+      <div class="cell"><span>بەروار:</span><b>${toEnDate(t.transaction_date)}</b></div>
+      <div class="cell"><span>ژمارە وەسڵ:</span><b>${t.voucher_no ?? '—'}</b></div>
+    </div>
+
+    <div class="amount-box">
+      <div class="cur">${t.currency}</div>
+      <div class="amt num">${fmt(t.amount)}</div>
+    </div>
+    <div class="words-row">
+      <div class="words">${amountWords}</div>
+      <div class="lbl">پێدراو بڕی</div>
+    </div>
+
+    ${fieldsHtml}
+
+    <div class="footer">
+      <div class="accountant">ژمێریار<b>${myPermissions?.name || '—'}</b></div>
+      <div class="sig">نیمزای وەرگر<br>Receiver Signature</div>
+      <div class="contact" dir="ltr">0750 113 1044 – 0770 154 3847 – 0770 815 3333</div>
+      <div class="addr">ناونیشان: سلێمانی – خانەقا – بازاڕی ڕەبات – دووکانی 48</div>
+    </div>
+
+  </div>
+</body></html>`;
+  const win = window.open('', '_blank');
+  if(!win){ alert('تکایە ڕێگە بە پەنجەرەی نوێ بدە (popup blocker چالاکە)'); return; }
+  win.document.write(html); win.document.close();
+}
+
+/* ---------- Debt view toggle ---------- */
+document.querySelectorAll('.debt-tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.debt-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const view = btn.dataset.debtview;
+    document.getElementById('debtorsList').classList.toggle('hidden', view !== 'debtors');
+    document.getElementById('creditorsList').classList.toggle('hidden', view !== 'creditors');
+    document.getElementById('debtViewCaption').textContent = view === 'debtors' ? 'ئەو کەسانەی قەرزاری منن' : 'ئەو کەسانەی من قەرزاریانم';
+  });
+});
+
+/* ---------- Statement search (by name or code) ---------- */
+const statementSearchEl = document.getElementById('statementSearch');
+const statementResultsEl = document.getElementById('statementSearchResults');
+statementSearchEl.addEventListener('input', ()=>{
+  const q = statementSearchEl.value.trim().toLowerCase();
+  if(!q){ statementResultsEl.classList.add('hidden'); return; }
+  const filtered = accountsCache.filter(a=> String(a.code).includes(q) || a.name.toLowerCase().includes(q)).slice(0,20);
+  statementResultsEl.innerHTML = filtered.length
+    ? filtered.map(a=>`<div class="acct-item" onmousedown="openStatementDialog('${a.id}')"><span class="font-semibold" style="color:var(--teal-dark)">${a.code}</span> — ${a.name}</div>`).join('')
+    : `<div class="acct-item" style="color:var(--ink-soft)">هیچ نەدۆزرایەوە</div>`;
+  statementResultsEl.classList.remove('hidden');
+});
+statementSearchEl.addEventListener('blur', ()=> setTimeout(()=>statementResultsEl.classList.add('hidden'), 150));
+
+/* ---------- Statements tab: system accounts + debtors/creditors ---------- */
+async function renderStatementsTab(){
+  const sysWrap = document.getElementById('systemAccountsList');
+  const sysAccounts = accountsCache.filter(a=>a.category!=='customer').sort((a,b)=>a.code-b.code);
+  sysWrap.innerHTML = sysAccounts.map(a=>`
+    <div class="card p-3 text-center">
+      <p class="text-xs font-bold" style="color:var(--teal-dark)">#${a.code}</p>
+      <p class="text-xs font-semibold mt-1">${a.name}</p>
+      <button onclick="openStatementDialog('${a.id}')" class="w-full mt-2 text-[11px] py-1.5 rounded-lg font-semibold" style="background:var(--teal-light); color:var(--teal-dark)">📄 کەشف حساب</button>
+    </div>`).join('');
+
+  const { data } = await sb.from('transactions').select('debit_account_id,credit_account_id,amount,currency').neq('status', 'cancelled');
+  const net = {}; // accountId -> { IQD, USD, EUR }
+  const bump = (id, cur, v) => {
+    if(!id) return;
+    if(!net[id]) net[id] = { IQD:0, USD:0, EUR:0 };
+    net[id][cur] += v;
+  };
+  (data||[]).forEach(t=>{
+    bump(t.debit_account_id, t.currency, Number(t.amount));
+    bump(t.credit_account_id, t.currency, -Number(t.amount));
+  });
+
+  const customers = accountsCache.filter(a=>a.category==='customer');
+  const debtorsWrap = document.getElementById('debtorsList');   // net > 0 → قەرزاری منن
+  const creditorsWrap = document.getElementById('creditorsList'); // net < 0 → من قەرزاریانم
+
+  const debtorCards = [], creditorCards = [];
+  customers.forEach(c=>{
+    const n = net[c.id] || { IQD:0, USD:0, EUR:0 };
+    Object.entries(n).forEach(([cur, v])=>{
+      if(Math.abs(v) < 0.001) return;
+      const card = `
+        <div class="card p-4 cursor-pointer" onclick="openStatementDialog('${c.id}')">
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-sm">${c.name} <span class="text-[10px] font-normal" style="color:var(--ink-soft)">#${c.code}</span></p>
+            <span class="num text-sm font-bold" style="color:${v>0?'var(--debit)':'var(--credit)'}">${fmtCur(Math.abs(v), cur)}</span>
+          </div>
+          <p class="text-[11px] mt-1" style="color:var(--ink-soft)">${c.phone || ''}</p>
+        </div>`;
+      if(v > 0) debtorCards.push(card); else creditorCards.push(card);
+    });
+  });
+
+  debtorsWrap.innerHTML = debtorCards.length ? debtorCards.join('') : `<p class="text-sm col-span-2" style="color:var(--ink-soft)">هیچ کەسێک قەرزاری تۆ نییە.</p>`;
+  creditorsWrap.innerHTML = creditorCards.length ? creditorCards.join('') : `<p class="text-sm col-span-2" style="color:var(--ink-soft)">تۆ قەرزاری هیچ کەسێک نیت.</p>`;
+}
+
+/* ---------- Account Statement (کەشف حساب) ---------- */
+function openStatementDialog(accountId){
+  const acc = accountsCache.find(a=>a.id === accountId);
+  if(!acc) return;
+  const from = new Date(); from.setMonth(from.getMonth()-2);
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">کەشف حساب — ${acc.name}</h3>
+    <form id="statementForm" class="space-y-3">
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">لە بەرواری</label><input required type="date" id="stFrom" value="${from.toISOString().slice(0,10)}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div><label class="text-xs font-medium" style="color:var(--ink-soft)">بۆ بەرواری</label><input required type="date" id="stTo" value="${todayStr()}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">🖨️ دروستکردنی کەشف حساب</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>`);
+  document.getElementById('statementForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const from = document.getElementById('stFrom').value, to = document.getElementById('stTo').value;
+    closeModal();
+    await generateAccountStatement(accountId, from, to);
+  });
+}
+
+async function generateAccountStatement(accountId, fromDate, toDate){
+  const acc = accountsCache.find(a=>a.id === accountId);
+  if(!acc) return;
+
+  const { data } = await sb.from('transactions').select('*')
+    .or(`debit_account_id.eq.${accountId},credit_account_id.eq.${accountId}`)
+    .gte('transaction_date', fromDate).lte('transaction_date', toDate)
+    .neq('status', 'cancelled')
+    .order('transaction_date', { ascending:true }).order('voucher_no', { ascending:true });
+  const rows = data || [];
+
+  // running balance per currency (starts at 0 for the period; debit +, credit -)
+  const runningByCur = {};
+  let totalDebit = 0, totalCredit = 0;
+  const currencyUsed = rows.length ? rows[0].currency : (acc.currency || 'USD');
+
+  const rowsHtml = rows.length ? rows.map(t=>{
+    const isDebit = t.debit_account_id === accountId;
+    const cur = t.currency;
+    if(runningByCur[cur] === undefined) runningByCur[cur] = 0;
+    runningByCur[cur] += isDebit ? Number(t.amount) : -Number(t.amount);
+    if(isDebit) totalDebit += Number(t.amount); else totalCredit += Number(t.amount);
+    return `
+    <tr>
+      <td>${t.voucher_no ?? '—'}</td>
+      <td>${toEnDate(t.transaction_date)}</td>
+      <td>${TYPE_LABELS[t.type]}</td>
+      <td>${accountLabel(t.debit_account_id)}</td>
+      <td>${accountLabel(t.credit_account_id)}</td>
+      <td>${t.receiver_name || '—'}</td>
+      <td>${t.sender_name || '—'}</td>
+      <td>${t.notes || '—'}</td>
+      <td class="num" style="color:#B5472F">${isDebit ? fmt(t.amount) : '00'}</td>
+      <td class="num" style="color:#0E7B76">${!isDebit ? '-'+fmt(t.amount) : '00'}</td>
+      <td class="num" style="font-weight:800">${fmt(runningByCur[cur])}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="11" style="text-align:center; padding:20px; color:#8b8b8b;">هیچ مامەڵەیەک لەم ماوەیەدا نییە</td></tr>`;
+
+  const net = totalDebit - totalCredit;
+  const isDebtor = net > 0;
+  const balanceLabel = net === 0 ? 'یەکسانە' : (isDebtor ? 'قەرزارە' : 'قەرزارین');
+
+  const genDate = new Date().toLocaleString('en-GB');
+  const html = `<!DOCTYPE html><html lang="ckb" dir="rtl"><head><meta charset="UTF-8"><title>کەشفی حساب — ${acc.name}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;} body{font-family:'Vazirmatn',sans-serif; color:#1C2B2A; background:#F2F6F6; padding:24px;}
+  .font-head{font-family:'Noto Kufi Arabic',sans-serif;} .num{font-variant-numeric: tabular-nums;}
+  .sheet{max-width:1200px; margin:0 auto; background:#fff; border-radius:14px; border:2px solid #16A8A2; padding:20px;}
+  .title-bar{display:flex; justify-content:space-between; align-items:center; background:var(--teal-light,#E4F5F4); border-radius:10px; padding:12px 18px; margin-bottom:4px;}
+  .title-bar h2{font-family:'Noto Kufi Arabic',sans-serif; font-size:17px; color:#0E7B76;}
+  .range{font-size:12px; color:#63807D; font-weight:600;}
+  .brandline{text-align:center; font-size:10px; letter-spacing:2px; color:#63807D; margin:8px 0 14px;}
+  table{width:100%; border-collapse:collapse; margin-top:10px; font-size:11px;}
+  thead th{background:#E4F5F4; color:#0E7B76; font-size:10px; font-weight:700; text-align:right; padding:8px 5px; border-bottom:2px solid #DCEAE9; white-space:nowrap;}
+  tbody td{padding:7px 5px; border-bottom:1px solid #F0F4F3; white-space:nowrap;}
+  tbody tr:nth-child(even){background:#FAFCFC;}
+  .totals{display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; margin-top:14px; border:1.5px solid #DCEAE9; border-radius:10px; overflow:hidden;}
+  .totals > div{padding:14px 16px; text-align:center; border-inline-start:1px solid #DCEAE9;}
+  .totals > div:first-child{border-inline-start:none;}
+  .totals .lbl{font-size:11px; color:#63807D; font-weight:700; margin-bottom:6px;}
+  .totals .val{font-family:'Noto Kufi Arabic',sans-serif; font-size:16px; font-weight:800;}
+  .footer{text-align:center; padding-top:14px; margin-top:16px; border-top:1px dashed #DCEAE9; font-size:10px; color:#8b8b8b;}
+  .toolbar{max-width:1200px; margin:0 auto 12px; display:flex; justify-content:flex-end;}
+  .toolbar button{font-family:'Vazirmatn',sans-serif; background:#16A8A2; color:#fff; border:none; padding:10px 20px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer;}
+  @media print{ body{background:#fff; padding:0;} .toolbar{display:none;} .sheet{border:1px solid #DCEAE9; max-width:100%;} }
+</style></head><body>
+  <div class="toolbar"><button onclick="window.print()">🖨️ چاپکردن / هەڵگرتن وەک PDF</button></div>
+  <div class="sheet">
+    <div class="title-bar">
+      <h2>کەشفی حسابی بەڕێز #${acc.code} — ${acc.name}${acc.currency ? ' بۆ '+acc.currency : ''}</h2>
+      <span class="range">لە ${toEnDate(fromDate)} &nbsp;بۆ&nbsp; ${toEnDate(toDate)}</span>
+    </div>
+    <p class="brandline">نوسینگەی دانیار — DANYAR OFFICE</p>
+    <table>
+      <thead><tr>
+        <th>ژمارە</th><th>بەروار</th><th>جۆر</th><th>ج.مدین</th><th>ج.دائن</th><th>وەرگر</th><th>نێرەر</th><th>تێبینی</th><th>مدین</th><th>دائن</th><th>رەصید</th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div class="totals">
+      <div><p class="lbl">کۆی مدین</p><p class="val" style="color:#B5472F">${fmt(totalDebit)}</p></div>
+      <div><p class="lbl">کۆی دائن</p><p class="val" style="color:#0E7B76">-${fmt(totalCredit)}</p></div>
+      <div><p class="lbl">ڕەصید — ${balanceLabel}</p><p class="val" style="color:${isDebtor?'#B5472F':'#0E7B76'}">${fmt(Math.abs(net))}</p></div>
+    </div>
+    <div class="footer">ئەم بەڵگەنامەیە بە شێوەی خۆکار دروستکراوە لەلایەن نوسینگەی دانیار — دەرچووە: ${genDate}</div>
+  </div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if(!win){ alert('تکایە ڕێگە بە پەنجەرەی نوێ بدە (popup blocker چالاکە)'); return; }
+  win.document.write(html); win.document.close();
+}
+
+/* ---------- Init ---------- */
+checkSession();
+</script>
+</body>
+</html>

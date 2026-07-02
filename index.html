@@ -51,7 +51,6 @@
   table.ledger tbody tr:hover{background:#FAFCFC;}
   table.ledger tbody tr.selected{background:var(--teal-light);}
   table.ledger tfoot td{padding:10px 8px; font-weight:800; background:var(--teal-light); color:var(--teal-dark); border-top:2px solid var(--teal);}
-  .status-badge{font-size:10px; font-weight:700; padding:2px 9px; border-radius:99px; border:1.5px solid;}
   .acct-dropdown{position:absolute; z-index:60; width:100%; background:#fff; border:1px solid var(--border); border-radius:8px; margin-top:2px; max-height:190px; overflow-y:auto; box-shadow:0 6px 18px rgba(0,0,0,.08);}
   .debt-tab{border:1.5px solid var(--border); color:var(--ink-soft); background:#fff;}
   .debt-tab.active{background:var(--teal); border-color:var(--teal); color:#fff;}
@@ -67,6 +66,7 @@
     <div class="text-center mb-6">
       <h1 class="font-head text-2xl font-bold" style="color:var(--teal-dark)">نوسینگەی دانیار</h1>
       <p class="text-xs mt-1 tracking-widest" style="color:var(--ink-soft)">DANYAR OFFICE</p>
+      <p id="loginVersionLabel" class="text-[10px] mt-1" style="color:var(--ink-soft)"></p>
     </div>
     <form id="loginForm" class="space-y-3">
       <div>
@@ -104,6 +104,7 @@
     <div class="p-3 space-y-2">
       <button id="changePasswordBtn" class="w-full text-xs py-2 rounded-lg" style="background:rgba(255,255,255,.1); color:#EAFAF9">گۆڕینی وشەی نهێنی</button>
       <button id="logoutBtn" class="w-full text-xs py-2 rounded-lg" style="background:rgba(255,255,255,.1); color:#EAFAF9">دەرچوون</button>
+      <p id="versionLabel" class="text-center text-[10px] pt-1" style="color:#8CC9C4"></p>
     </div>
   </aside>
 
@@ -163,7 +164,7 @@
 
       <div class="card overflow-x-auto">
         <table class="ledger"><thead><tr>
-          <th>#</th><th>ژمارە وەسڵ</th><th>بەروار</th><th>جۆر</th><th>دراو</th><th>بڕی پارە</th><th>مدین</th><th>دائن</th><th>نێرەر</th><th>وەرگر</th><th>دۆخ</th>
+          <th>#</th><th>ژمارە وەسڵ</th><th>بەروار</th><th>جۆر</th><th>دراو</th><th>بڕی پارە</th><th>مدین</th><th>دائن</th><th>نێرەر</th><th>وەرگر</th>
         </tr></thead><tbody id="transactionsBody"></tbody><tfoot><tr id="tableFoot"></tr></tfoot></table>
       </div>
     </section>
@@ -262,6 +263,11 @@
 /* ======================================================
    ڕێکخستنی Supabase
 ====================================================== */
+/* ======================================================
+   ژمارەی وەشان — هەر کاتێک سیستەمەکە نوێ دەکەیتەوە، ئەم ژمارەیە بگۆڕە
+====================================================== */
+const APP_VERSION = "V0.2.8";
+
 const SUPABASE_URL = "https://jzobbmfngbvlqwgmvefq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_MXxb5S0ztEgbr3iWgwnUmg_Rsk1PlbI";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -287,11 +293,6 @@ const fmt = n => new Intl.NumberFormat('en-US').format(Number(n || 0));
 const todayStr = () => new Date().toISOString().slice(0,10);
 const fmtCur = (n, c) => c === 'IQD' ? `${fmt(n)} د.ع` : `${CUR_LABEL[c]}${fmt(n)}`;
 const toEnDate = iso => { if(!iso) return '—'; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
-function statusInfo(s){
-  if(s==='completed') return { label:'تەواوبوو', color:'var(--sage)' };
-  if(s==='pending') return { label:'چاوەڕوان', color:'var(--amber)' };
-  return { label:'هەڵوەشاوە', color:'var(--rust)' };
-}
 function showModal(html){ document.getElementById('modalBox').innerHTML = html; document.getElementById('modalBackdrop').classList.remove('hidden'); }
 function closeModal(){ document.getElementById('modalBackdrop').classList.add('hidden'); }
 document.getElementById('modalBackdrop').addEventListener('click', e=>{ if(e.target.id === 'modalBackdrop') closeModal(); });
@@ -608,13 +609,12 @@ async function renderTransactions(){
 
   const body = document.getElementById('transactionsBody');
   if(!rows.length){
-    body.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:24px; color:var(--ink-soft);">هیچ مامەڵەیەک لەم ماوەیەدا نییە</td></tr>`;
+    body.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:24px; color:var(--ink-soft);">هیچ مامەڵەیەک لەم ماوەیەدا نییە</td></tr>`;
     document.getElementById('tableFoot').innerHTML = ''; return;
   }
   const totals = {};
   rows.forEach(t=>{ totals[t.currency] = (totals[t.currency]||0) + Number(t.amount); });
   body.innerHTML = rows.map((t,i)=>{
-    const st = statusInfo(t.status);
     return `
     <tr id="row-${t.id}" onclick="selectRow('${t.id}')">
       <td>${i+1}</td><td>${t.voucher_no ?? '—'}</td><td>${toEnDate(t.transaction_date)}</td><td>${TYPE_LABELS[t.type]}</td><td>${CUR_LABEL[t.currency]}</td>
@@ -622,11 +622,10 @@ async function renderTransactions(){
       <td style="color:var(--debit)">${accountLabel(t.debit_account_id)}</td>
       <td style="color:var(--credit)">${accountLabel(t.credit_account_id)}</td>
       <td>${t.sender_name || '—'}</td><td>${t.receiver_name || '—'}</td>
-      <td><span class="status-badge" style="color:${st.color}; border-color:${st.color}">${st.label}</span></td>
     </tr>`;
   }).join('');
   const totalParts = Object.entries(totals).map(([cur,v])=>fmtCur(v,cur)).join('   ');
-  document.getElementById('tableFoot').innerHTML = `<td colspan="5">کۆی گشتی</td><td colspan="6">${totalParts || '۰'}</td>`;
+  document.getElementById('tableFoot').innerHTML = `<td colspan="5">کۆی گشتی</td><td colspan="5">${totalParts || '۰'}</td>`;
 }
 
 function selectRow(id){
@@ -785,13 +784,6 @@ function openTransactionForm(type, editTx){
             </select>
           </div>
         </div>
-        <div><label class="text-xs font-medium" style="color:var(--ink-soft)">دۆخ</label>
-          <select id="xStatus" class="w-full mt-1 px-3 py-2 text-sm">
-            <option value="completed" ${(!editTx||editTx.status==='completed')?'selected':''}>تەواوبوو</option>
-            <option value="pending" ${editTx?.status==='pending'?'selected':''}>چاوەڕوان</option>
-            <option value="cancelled" ${editTx?.status==='cancelled'?'selected':''}>هەڵوەشاوە</option>
-          </select>
-        </div>
       `}
       <div><label class="text-xs font-medium" style="color:var(--ink-soft)">بەروار</label><input required type="date" id="xDate" value="${editTx?.transaction_date || todayStr()}" class="w-full mt-1 px-3 py-2 text-sm"></div>
       <div><label class="text-xs font-medium" style="color:var(--ink-soft)">تێبینی</label><textarea id="xNotes" rows="2" class="w-full mt-1 px-3 py-2 text-sm">${editTx?.notes || ''}</textarea></div>
@@ -815,7 +807,6 @@ function openTransactionForm(type, editTx){
       const toCur = document.getElementById('xToCurrency').value;
       payload.exchange_to_currency = toCur;
       payload.exchange_to_amount = document.getElementById('xToAmount').value || null;
-      payload.status = 'completed';
       payload.debit_account_id = findAccount('cashbox', toCur)?.id || null;
       payload.credit_account_id = findAccount('cashbox', payload.currency)?.id || null;
     } else {
@@ -825,7 +816,6 @@ function openTransactionForm(type, editTx){
       payload.commission_out = document.getElementById('xCommissionOut').value || 0;
       payload.sender_name = document.getElementById('xSender').value;
       payload.receiver_name = document.getElementById('xReceiver').value;
-      payload.status = document.getElementById('xStatus').value;
     }
 
     let savedId;
@@ -1247,7 +1237,6 @@ async function downloadExcelBackup(){
     'موبایل': t.phone || '',
     'عمولەی وەرگرتن': Number(t.commission_in || 0),
     'عمولەی دان': Number(t.commission_out || 0),
-    'دۆخ': statusInfo(t.status).label,
     'تێبینی': t.notes || ''
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -1257,6 +1246,8 @@ async function downloadExcelBackup(){
 }
 
 /* ---------- Init ---------- */
+document.getElementById('versionLabel').textContent = `وەشان ${APP_VERSION}`;
+document.getElementById('loginVersionLabel').textContent = `وەشان ${APP_VERSION}`;
 checkSession();
 </script>
 </body>

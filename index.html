@@ -23,7 +23,7 @@
   ::-webkit-scrollbar{width:8px; height:8px;}
   ::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
   .num{font-variant-numeric: tabular-nums;}
-  .card{background:var(--surface); border:1px solid var(--border); border-radius:12px;}
+  .card{background:ar(--surface); border:1px solid ar(--border); border-radius:12px;}
   .fade-in{animation:fadeIn .25s ease;}
   @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
   input, select, textarea{background:#fff; border:1px solid var(--border); border-radius:8px;}
@@ -229,7 +229,7 @@
 
       <h3 class="font-head font-semibold text-sm mb-3" style="color:var(--teal-dark)">💾 پاشەکەوتکردنی داتا (Backup)</h3>
       <div class="card p-4 mb-8">
-        <p class="text-xs mb-3" style="color:var(--ink-soft)">پێشنیارە هەفتانە یان مانگانە داتاکەت داگریت — ئەگەر هەر شتێک ڕوویدا، دەتوانیت لەم فایلانە بگەڕێیتەوە.</p>
+        <p class="text-xs mb-3" style="color:var(--ink-soft)">پێشنیارە هەفتانە یان مانگانە داتاکەت داگریت بۆ ئارامی دڵ — ئەگەر هەر شتێک ڕوویدا، دەتوانیت لەم فایلانە بگەڕێیتەوە.</p>
         <div class="flex gap-2 flex-wrap">
           <button onclick="downloadJSONBackup()" class="px-4 py-2 rounded-lg text-sm font-semibold" style="background:var(--teal-light); color:var(--teal-dark)">📥 داگرتنی هەموو داتا (JSON — بۆ گەڕانەوە)</button>
           <button onclick="downloadExcelBackup()" class="px-4 py-2 rounded-lg text-sm font-semibold" style="background:var(--teal-light); color:var(--teal-dark)">📊 داگرتنی مامەڵەکان (Excel — بۆ خوێندنەوە)</button>
@@ -266,7 +266,7 @@
 /* ======================================================
    ژمارەی وەشان — هەر کاتێک سیستەمەکە نوێ دەکەیتەوە، ئەم ژمارەیە بگۆڕە
 ====================================================== */
-const APP_VERSION = "V0.2.8";
+const APP_VERSION = "V0.2.9";
 
 const SUPABASE_URL = "https://jzobbmfngbvlqwgmvefq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_MXxb5S0ztEgbr3iWgwnUmg_Rsk1PlbI";
@@ -768,11 +768,13 @@ function openTransactionForm(type, editTx){
           </div>
         </div>
       ` : `
-        ${accountPickerHTML('xDebit', 'مدین (قەرزار)', 'گەڕان بە ناو یان کۆد...')}
-        ${accountPickerHTML('xCredit', 'دائن (پارەدەر)', 'گەڕان بە ناو یان کۆد...')}
-        <div class="grid grid-cols-2 gap-2">
-          <div><label class="text-xs font-medium" style="color:var(--ink-soft)">عمولەی وەرگرتن</label><input type="number" step="0.01" id="xCommissionIn" value="${editTx?.commission_in ?? 0}" class="w-full mt-1 px-3 py-2 text-sm"></div>
-          <div><label class="text-xs font-medium" style="color:var(--ink-soft)">عمولەی دان</label><input type="number" step="0.01" id="xCommissionOut" value="${editTx?.commission_out ?? 0}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+        <div class="flex gap-2 items-end">
+          <div class="flex-1">${accountPickerHTML('xDebit', 'مدین (قەرزار)', 'گەڕان بە ناو یان کۆد...')}</div>
+          <div style="width:92px"><label class="text-xs font-medium" style="color:var(--ink-soft)">عمولە</label><input type="number" step="0.01" id="xCommissionDebit" value="${editTx?.commission_in ?? 0}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+        </div>
+        <div class="flex gap-2 items-end">
+          <div class="flex-1">${accountPickerHTML('xCredit', 'دائن (پارەدەر)', 'گەڕان بە ناو یان کۆد...')}</div>
+          <div style="width:92px"><label class="text-xs font-medium" style="color:var(--ink-soft)">عمولە</label><input type="number" step="0.01" id="xCommissionCredit" value="${editTx?.commission_out ?? 0}" class="w-full mt-1 px-3 py-2 text-sm"></div>
         </div>
         <div><label class="text-xs font-medium" style="color:var(--ink-soft)">ناوی نێرەر</label><input id="xSender" class="w-full mt-1 px-3 py-2 text-sm" value="${editTx?.sender_name || ''}"></div>
         <div><label class="text-xs font-medium" style="color:var(--ink-soft)">ناوی وەرگر</label><input id="xReceiver" class="w-full mt-1 px-3 py-2 text-sm" value="${editTx?.receiver_name || ''}"></div>
@@ -812,8 +814,8 @@ function openTransactionForm(type, editTx){
     } else {
       payload.debit_account_id = await resolveAccountId('xDebit');
       payload.credit_account_id = await resolveAccountId('xCredit');
-      payload.commission_in = document.getElementById('xCommissionIn').value || 0;
-      payload.commission_out = document.getElementById('xCommissionOut').value || 0;
+      payload.commission_in = document.getElementById('xCommissionDebit').value || 0;
+      payload.commission_out = document.getElementById('xCommissionCredit').value || 0;
       payload.sender_name = document.getElementById('xSender').value;
       payload.receiver_name = document.getElementById('xReceiver').value;
     }
@@ -1041,7 +1043,7 @@ async function renderStatementsTab(){
       <button onclick="openStatementDialog('${a.id}')" class="w-full mt-2 text-[11px] py-1.5 rounded-lg font-semibold" style="background:var(--teal-light); color:var(--teal-dark)">📄 کەشف حساب</button>
     </div>`).join('');
 
-  const { data } = await sb.from('transactions').select('debit_account_id,credit_account_id,amount,currency').neq('status', 'cancelled');
+  const { data } = await sb.from('transactions').select('debit_account_id,credit_account_id,amount,currency,commission_in,commission_out').neq('status', 'cancelled');
   const net = {}; // accountId -> { IQD, USD, EUR }
   const bump = (id, cur, v) => {
     if(!id) return;
@@ -1049,8 +1051,8 @@ async function renderStatementsTab(){
     net[id][cur] += v;
   };
   (data||[]).forEach(t=>{
-    bump(t.debit_account_id, t.currency, Number(t.amount));
-    bump(t.credit_account_id, t.currency, -Number(t.amount));
+    bump(t.debit_account_id, t.currency, Number(t.amount) + Number(t.commission_in||0));
+    bump(t.credit_account_id, t.currency, -(Number(t.amount) + Number(t.commission_out||0)));
   });
 
   const customers = accountsCache.filter(a=>a.category==='customer');
@@ -1105,24 +1107,58 @@ async function generateAccountStatement(accountId, fromDate, toDate){
   const acc = accountsCache.find(a=>a.id === accountId);
   if(!acc) return;
 
-  const { data } = await sb.from('transactions').select('*')
-    .or(`debit_account_id.eq.${accountId},credit_account_id.eq.${accountId}`)
-    .gte('transaction_date', fromDate).lte('transaction_date', toDate)
-    .neq('status', 'cancelled')
-    .order('transaction_date', { ascending:true }).order('voucher_no', { ascending:true });
-  const rows = data || [];
+  const isCommissionAccount = acc.category === 'commission';
 
-  // running balance per currency (starts at 0 for the period; debit +, credit -)
+  let rows;
+  if(isCommissionAccount){
+    const { data } = await sb.from('transactions').select('*')
+      .eq('currency', acc.currency)
+      .gte('transaction_date', fromDate).lte('transaction_date', toDate)
+      .neq('status', 'cancelled')
+      .or('commission_in.neq.0,commission_out.neq.0')
+      .order('transaction_date', { ascending:true }).order('voucher_no', { ascending:true });
+    rows = data || [];
+  } else {
+    const { data } = await sb.from('transactions').select('*')
+      .or(`debit_account_id.eq.${accountId},credit_account_id.eq.${accountId}`)
+      .gte('transaction_date', fromDate).lte('transaction_date', toDate)
+      .neq('status', 'cancelled')
+      .order('transaction_date', { ascending:true }).order('voucher_no', { ascending:true });
+    rows = data || [];
+  }
+
   const runningByCur = {};
   let totalDebit = 0, totalCredit = 0;
-  const currencyUsed = rows.length ? rows[0].currency : (acc.currency || 'USD');
 
   const rowsHtml = rows.length ? rows.map(t=>{
-    const isDebit = t.debit_account_id === accountId;
     const cur = t.currency;
     if(runningByCur[cur] === undefined) runningByCur[cur] = 0;
-    runningByCur[cur] += isDebit ? Number(t.amount) : -Number(t.amount);
-    if(isDebit) totalDebit += Number(t.amount); else totalCredit += Number(t.amount);
+
+    if(isCommissionAccount){
+      const cIn = Number(t.commission_in||0), cOut = Number(t.commission_out||0);
+      const combined = cIn + cOut;
+      runningByCur[cur] += combined;
+      if(combined >= 0) totalDebit += combined; else totalCredit += Math.abs(combined);
+      return `
+      <tr>
+        <td>${t.voucher_no ?? '—'}</td>
+        <td>${toEnDate(t.transaction_date)}</td>
+        <td>${TYPE_LABELS[t.type]}</td>
+        <td>${accountLabel(t.debit_account_id)}</td>
+        <td>${accountLabel(t.credit_account_id)}</td>
+        <td>${t.receiver_name || '—'}</td>
+        <td>${t.sender_name || '—'}</td>
+        <td>${t.notes || '—'}</td>
+        <td class="num" style="color:#B5472F">${combined>=0 ? fmt(combined) : '00'}</td>
+        <td class="num" style="color:#0E7B76">${combined<0 ? '-'+fmt(Math.abs(combined)) : '00'}</td>
+        <td class="num" style="font-weight:800">${fmt(runningByCur[cur])}</td>
+      </tr>`;
+    }
+
+    const isDebit = t.debit_account_id === accountId;
+    const effAmount = isDebit ? (Number(t.amount) + Number(t.commission_in||0)) : (Number(t.amount) + Number(t.commission_out||0));
+    runningByCur[cur] += isDebit ? effAmount : -effAmount;
+    if(isDebit) totalDebit += effAmount; else totalCredit += effAmount;
     return `
     <tr>
       <td>${t.voucher_no ?? '—'}</td>
@@ -1133,8 +1169,8 @@ async function generateAccountStatement(accountId, fromDate, toDate){
       <td>${t.receiver_name || '—'}</td>
       <td>${t.sender_name || '—'}</td>
       <td>${t.notes || '—'}</td>
-      <td class="num" style="color:#B5472F">${isDebit ? fmt(t.amount) : '00'}</td>
-      <td class="num" style="color:#0E7B76">${!isDebit ? '-'+fmt(t.amount) : '00'}</td>
+      <td class="num" style="color:#B5472F">${isDebit ? fmt(effAmount) : '00'}</td>
+      <td class="num" style="color:#0E7B76">${!isDebit ? '-'+fmt(effAmount) : '00'}</td>
       <td class="num" style="font-weight:800">${fmt(runningByCur[cur])}</td>
     </tr>`;
   }).join('') : `<tr><td colspan="11" style="text-align:center; padding:20px; color:#8b8b8b;">هیچ مامەڵەیەک لەم ماوەیەدا نییە</td></tr>`;
@@ -1235,8 +1271,8 @@ async function downloadExcelBackup(){
     'نێرەر': t.sender_name || '',
     'وەرگر': t.receiver_name || '',
     'موبایل': t.phone || '',
-    'عمولەی وەرگرتن': Number(t.commission_in || 0),
-    'عمولەی دان': Number(t.commission_out || 0),
+    'عمولەی مدین': Number(t.commission_in || 0),
+    'عمولەی دائن': Number(t.commission_out || 0),
     'تێبینی': t.notes || ''
   }));
   const ws = XLSX.utils.json_to_sheet(rows);

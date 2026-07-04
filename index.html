@@ -23,9 +23,11 @@
   ::-webkit-scrollbar{width:8px; height:8px;}
   ::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
   .num{font-variant-numeric: tabular-nums;}
-  .card{background:ar(--surface); border:1px solid ar(--border); border-radius:12px;}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:12px;}
   .fade-in{animation:fadeIn .25s ease;}
   @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+  .modal-in{animation:modalIn .18s ease; opacity:1;}
+  @keyframes modalIn{from{transform:translateY(8px) scale(.98);} to{transform:translateY(0) scale(1);}}
   input, select, textarea{background:#fff; border:1px solid var(--border); border-radius:8px;}
   input:focus, select:focus, textarea:focus{outline:2px solid var(--teal); outline-offset:1px;}
 
@@ -256,7 +258,7 @@
 
 <!-- ==================== MODAL ==================== -->
 <div id="modalBackdrop" class="hidden fixed inset-0 bg-black/40 z-40 flex items-center justify-center px-4 py-6">
-  <div id="modalBox" class="card w-full max-w-lg p-6 z-50 fade-in max-h-[88vh] overflow-y-auto"></div>
+  <div id="modalBox" class="card w-full max-w-lg p-6 z-50 modal-in max-h-[88vh] overflow-y-auto" style="background:#FFFFFF;"></div>
 </div>
 
 <script>
@@ -266,7 +268,7 @@
 /* ======================================================
    ژمارەی وەشان — هەر کاتێک سیستەمەکە نوێ دەکەیتەوە، ئەم ژمارەیە بگۆڕە
 ====================================================== */
-const APP_VERSION = "V0.2.9";
+const APP_VERSION = "V0.3.0";
 
 const SUPABASE_URL = "https://jzobbmfngbvlqwgmvefq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_MXxb5S0ztEgbr3iWgwnUmg_Rsk1PlbI";

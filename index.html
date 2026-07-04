@@ -268,7 +268,7 @@
 /* ======================================================
    ژمارەی وەشان — هەر کاتێک سیستەمەکە نوێ دەکەیتەوە، ئەم ژمارەیە بگۆڕە
 ====================================================== */
-const APP_VERSION = "V0.3.0";
+const APP_VERSION = "V0.3.1";
 
 const SUPABASE_URL = "https://jzobbmfngbvlqwgmvefq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_MXxb5S0ztEgbr3iWgwnUmg_Rsk1PlbI";
@@ -1092,6 +1092,14 @@ function openStatementDialog(accountId){
     <form id="statementForm" class="space-y-3">
       <div><label class="text-xs font-medium" style="color:var(--ink-soft)">لە بەرواری</label><input required type="date" id="stFrom" value="${from.toISOString().slice(0,10)}" class="w-full mt-1 px-3 py-2 text-sm"></div>
       <div><label class="text-xs font-medium" style="color:var(--ink-soft)">بۆ بەرواری</label><input required type="date" id="stTo" value="${todayStr()}" class="w-full mt-1 px-3 py-2 text-sm"></div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">ستوونی زیادە بۆ نیشاندان</label>
+        <div class="flex flex-col gap-1.5 mt-1.5">
+          <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="colDebitAcc" checked><span>ج.مدین</span></label>
+          <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="colCreditAcc" checked><span>ج.دائن</span></label>
+          <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="colNotes" checked><span>تێبینی</span></label>
+        </div>
+      </div>
       <div class="flex gap-2 pt-2">
         <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">🖨️ دروستکردنی کەشف حساب</button>
         <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
@@ -1100,12 +1108,18 @@ function openStatementDialog(accountId){
   document.getElementById('statementForm').addEventListener('submit', async e=>{
     e.preventDefault();
     const from = document.getElementById('stFrom').value, to = document.getElementById('stTo').value;
+    const cols = {
+      debitAcc: document.getElementById('colDebitAcc').checked,
+      creditAcc: document.getElementById('colCreditAcc').checked,
+      notes: document.getElementById('colNotes').checked
+    };
     closeModal();
-    await generateAccountStatement(accountId, from, to);
+    await generateAccountStatement(accountId, from, to, cols);
   });
 }
 
-async function generateAccountStatement(accountId, fromDate, toDate){
+async function generateAccountStatement(accountId, fromDate, toDate, cols){
+  cols = cols || { debitAcc:true, creditAcc:true, notes:true };
   const acc = accountsCache.find(a=>a.id === accountId);
   if(!acc) return;
 
@@ -1131,10 +1145,14 @@ async function generateAccountStatement(accountId, fromDate, toDate){
 
   const runningByCur = {};
   let totalDebit = 0, totalCredit = 0;
+  const totalCols = 8 + (cols.debitAcc?1:0) + (cols.creditAcc?1:0) + (cols.notes?1:0);
 
   const rowsHtml = rows.length ? rows.map(t=>{
     const cur = t.currency;
     if(runningByCur[cur] === undefined) runningByCur[cur] = 0;
+    const debitCell = cols.debitAcc ? `<td>${accountLabel(t.debit_account_id)}</td>` : '';
+    const creditCell = cols.creditAcc ? `<td>${accountLabel(t.credit_account_id)}</td>` : '';
+    const notesCell = cols.notes ? `<td>${t.notes || '—'}</td>` : '';
 
     if(isCommissionAccount){
       const cIn = Number(t.commission_in||0), cOut = Number(t.commission_out||0);
@@ -1146,11 +1164,10 @@ async function generateAccountStatement(accountId, fromDate, toDate){
         <td>${t.voucher_no ?? '—'}</td>
         <td>${toEnDate(t.transaction_date)}</td>
         <td>${TYPE_LABELS[t.type]}</td>
-        <td>${accountLabel(t.debit_account_id)}</td>
-        <td>${accountLabel(t.credit_account_id)}</td>
+        ${debitCell}${creditCell}
         <td>${t.receiver_name || '—'}</td>
         <td>${t.sender_name || '—'}</td>
-        <td>${t.notes || '—'}</td>
+        ${notesCell}
         <td class="num" style="color:#B5472F">${combined>=0 ? fmt(combined) : '00'}</td>
         <td class="num" style="color:#0E7B76">${combined<0 ? '-'+fmt(Math.abs(combined)) : '00'}</td>
         <td class="num" style="font-weight:800">${fmt(runningByCur[cur])}</td>
@@ -1166,16 +1183,15 @@ async function generateAccountStatement(accountId, fromDate, toDate){
       <td>${t.voucher_no ?? '—'}</td>
       <td>${toEnDate(t.transaction_date)}</td>
       <td>${TYPE_LABELS[t.type]}</td>
-      <td>${accountLabel(t.debit_account_id)}</td>
-      <td>${accountLabel(t.credit_account_id)}</td>
+      ${debitCell}${creditCell}
       <td>${t.receiver_name || '—'}</td>
       <td>${t.sender_name || '—'}</td>
-      <td>${t.notes || '—'}</td>
+      ${notesCell}
       <td class="num" style="color:#B5472F">${isDebit ? fmt(effAmount) : '00'}</td>
       <td class="num" style="color:#0E7B76">${!isDebit ? '-'+fmt(effAmount) : '00'}</td>
       <td class="num" style="font-weight:800">${fmt(runningByCur[cur])}</td>
     </tr>`;
-  }).join('') : `<tr><td colspan="11" style="text-align:center; padding:20px; color:#8b8b8b;">هیچ مامەڵەیەک لەم ماوەیەدا نییە</td></tr>`;
+  }).join('') : `<tr><td colspan="${totalCols}" style="text-align:center; padding:20px; color:#8b8b8b;">هیچ مامەڵەیەک لەم ماوەیەدا نییە</td></tr>`;
 
   const net = totalDebit - totalCredit;
   const isDebtor = net > 0;
@@ -1216,7 +1232,7 @@ async function generateAccountStatement(accountId, fromDate, toDate){
     <p class="brandline">نوسینگەی دانیار — DANYAR OFFICE</p>
     <table>
       <thead><tr>
-        <th>ژمارە</th><th>بەروار</th><th>جۆر</th><th>ج.مدین</th><th>ج.دائن</th><th>وەرگر</th><th>نێرەر</th><th>تێبینی</th><th>مدین</th><th>دائن</th><th>رەصید</th>
+        <th>ژمارە</th><th>بەروار</th><th>جۆر</th>${cols.debitAcc?'<th>ج.مدین</th>':''}${cols.creditAcc?'<th>ج.دائن</th>':''}<th>وەرگر</th><th>نێرەر</th>${cols.notes?'<th>تێبینی</th>':''}<th>مدین</th><th>دائن</th><th>رەصید</th>
       </tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>

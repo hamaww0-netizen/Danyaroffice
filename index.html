@@ -268,7 +268,7 @@
 /* ======================================================
    ژمارەی وەشان — هەر کاتێک سیستەمەکە نوێ دەکەیتەوە، ئەم ژمارەیە بگۆڕە
 ====================================================== */
-const APP_VERSION = "V0.3.1";
+const APP_VERSION = "V0.3.2";
 
 const SUPABASE_URL = "https://jzobbmfngbvlqwgmvefq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_MXxb5S0ztEgbr3iWgwnUmg_Rsk1PlbI";
@@ -1125,27 +1125,62 @@ async function generateAccountStatement(accountId, fromDate, toDate, cols){
 
   const isCommissionAccount = acc.category === 'commission';
 
-  let rows;
+  let rows, priorRows;
   if(isCommissionAccount){
-    const { data } = await sb.from('transactions').select('*')
-      .eq('currency', acc.currency)
-      .gte('transaction_date', fromDate).lte('transaction_date', toDate)
-      .neq('status', 'cancelled')
-      .or('commission_in.neq.0,commission_out.neq.0')
-      .order('transaction_date', { ascending:true }).order('voucher_no', { ascending:true });
-    rows = data || [];
+    const [{ data }, { data: prior }] = await Promise.all([
+      sb.from('transactions').select('*')
+        .eq('currency', acc.currency)
+        .gte('transaction_date', fromDate).lte('transaction_date', toDate)
+        .neq('status', 'cancelled')
+        .or('commission_in.neq.0,commission_out.neq.0')
+        .order('transaction_date', { ascending:true }).order('voucher_no', { ascending:true }),
+      sb.from('transactions').select('commission_in,commission_out,currency')
+        .eq('currency', acc.currency)
+        .lt('transaction_date', fromDate)
+        .neq('status', 'cancelled')
+        .or('commission_in.neq.0,commission_out.neq.0')
+    ]);
+    rows = data || []; priorRows = prior || [];
   } else {
-    const { data } = await sb.from('transactions').select('*')
-      .or(`debit_account_id.eq.${accountId},credit_account_id.eq.${accountId}`)
-      .gte('transaction_date', fromDate).lte('transaction_date', toDate)
-      .neq('status', 'cancelled')
-      .order('transaction_date', { ascending:true }).order('voucher_no', { ascending:true });
-    rows = data || [];
+    const [{ data }, { data: prior }] = await Promise.all([
+      sb.from('transactions').select('*')
+        .or(`debit_account_id.eq.${accountId},credit_account_id.eq.${accountId}`)
+        .gte('transaction_date', fromDate).lte('transaction_date', toDate)
+        .neq('status', 'cancelled')
+        .order('transaction_date', { ascending:true }).order('voucher_no', { ascending:true }),
+      sb.from('transactions').select('debit_account_id,credit_account_id,amount,currency,commission_in,commission_out')
+        .or(`debit_account_id.eq.${accountId},credit_account_id.eq.${accountId}`)
+        .lt('transaction_date', fromDate)
+        .neq('status', 'cancelled')
+    ]);
+    rows = data || []; priorRows = prior || [];
   }
 
-  const runningByCur = {};
+  // opening balance (برought forward) per currency, from everything before fromDate
+  const openingByCur = {};
+  let openingNet = 0;
+  priorRows.forEach(t=>{
+    const cur = t.currency;
+    if(openingByCur[cur] === undefined) openingByCur[cur] = 0;
+    if(isCommissionAccount){
+      const v = Number(t.commission_in||0) + Number(t.commission_out||0);
+      openingByCur[cur] += v; openingNet += v;
+    } else {
+      const isDebit = t.debit_account_id === accountId;
+      const effAmount = isDebit ? (Number(t.amount) + Number(t.commission_in||0)) : (Number(t.amount) + Number(t.commission_out||0));
+      const v = isDebit ? effAmount : -effAmount;
+      openingByCur[cur] += v; openingNet += v;
+    }
+  });
+
+  const runningByCur = { ...openingByCur };
   let totalDebit = 0, totalCredit = 0;
   const totalCols = 8 + (cols.debitAcc?1:0) + (cols.creditAcc?1:0) + (cols.notes?1:0);
+  const openingRowsHtml = Object.entries(openingByCur).filter(([,v])=>Math.abs(v)>0.001).map(([cur,v])=>`
+    <tr style="background:#F5FAFA; font-weight:700;">
+      <td colspan="${totalCols-1}">ڕەصیدی گواستراوە (پێش ${toEnDate(fromDate)})</td>
+      <td class="num" style="font-weight:800">${fmt(v)}</td>
+    </tr>`).join('');
 
   const rowsHtml = rows.length ? rows.map(t=>{
     const cur = t.currency;
@@ -1192,8 +1227,9 @@ async function generateAccountStatement(accountId, fromDate, toDate, cols){
       <td class="num" style="font-weight:800">${fmt(runningByCur[cur])}</td>
     </tr>`;
   }).join('') : `<tr><td colspan="${totalCols}" style="text-align:center; padding:20px; color:#8b8b8b;">هیچ مامەڵەیەک لەم ماوەیەدا نییە</td></tr>`;
+  const fullTableHtml = openingRowsHtml + rowsHtml;
 
-  const net = totalDebit - totalCredit;
+  const net = openingNet + (totalDebit - totalCredit);
   const isDebtor = net > 0;
   const balanceLabel = net === 0 ? 'یەکسانە' : (isDebtor ? 'قەرزارە' : 'قەرزارین');
 
@@ -1234,7 +1270,7 @@ async function generateAccountStatement(accountId, fromDate, toDate, cols){
       <thead><tr>
         <th>ژمارە</th><th>بەروار</th><th>جۆر</th>${cols.debitAcc?'<th>ج.مدین</th>':''}${cols.creditAcc?'<th>ج.دائن</th>':''}<th>وەرگر</th><th>نێرەر</th>${cols.notes?'<th>تێبینی</th>':''}<th>مدین</th><th>دائن</th><th>رەصید</th>
       </tr></thead>
-      <tbody>${rowsHtml}</tbody>
+      <tbody>${fullTableHtml}</tbody>
     </table>
     <div class="totals">
       <div><p class="lbl">کۆی مدین</p><p class="val" style="color:#B5472F">${fmt(totalDebit)}</p></div>
